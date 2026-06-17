@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/blocs/capture/capture_bloc.dart';
 import '../../widgets/section_title.dart';
 import '../capture/capture_view.dart';
 import '../lookup/lookup_view.dart';
@@ -20,152 +18,130 @@ class HomeView extends StatelessWidget {
         label: const Text('Talk to Rex'),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            context.read<CaptureBloc>().add(const CaptureRequested());
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-            children: <Widget>[
-              Row(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: <Color>[Color(0xFF0F766E), Color(0xFF14B8A6)],
+                    ),
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  child: const Icon(Icons.graphic_eq_rounded, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('Good morning, Savin', style: TextStyle(fontSize: 13, color: Color(0xFF66706D))),
+                      Text('Ready to sell smarter?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: () {},
+                  icon: const Icon(Icons.notifications_none_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: <Color>[Color(0xFF0F766E), Color(0xFF115E59)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Container(
-                    width: 48,
-                    height: 48,
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: colors.primary,
-                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(Icons.graphic_eq_rounded, color: colors.onPrimary),
+                    child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Good morning, Savin',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF66706D)),
-                        ),
-                        Text(
-                          'Ready to sell smarter?',
-                          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 28),
+                  const Text('Ask Rex anything', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Clients, deals, follow-ups and product knowledge — in seconds.',
+                    style: TextStyle(color: Colors.white70, height: 1.45, fontSize: 15),
                   ),
-                  IconButton.filledTonal(
-                    onPressed: () {},
-                    icon: const Icon(Icons.notifications_none_rounded),
+                  const SizedBox(height: 22),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: colors.primary),
+                    onPressed: () => _open(context, const LookupView()),
+                    icon: const Icon(Icons.search_rounded),
+                    label: const Text('Start a lookup'),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: <Color>[
-                      colors.primary,
-                      const Color(0xFF2A8D7F),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Icon(Icons.auto_awesome_rounded, color: colors.onPrimary),
-                    const SizedBox(height: 28),
-                    Text(
-                      'Ask Rex anything',
-                      style: TextStyle(
-                        color: colors.onPrimary,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Clients, deals, follow-ups and product knowledge — in seconds.',
-                      style: TextStyle(
-                        color: colors.onPrimary.withOpacity(0.82),
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: colors.primary,
-                      ),
-                      onPressed: () => _open(context, const LookupView()),
-                      icon: const Icon(Icons.search_rounded),
-                      label: const Text('Start a lookup'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              const SectionTitle(title: 'Today'),
-              const SizedBox(height: 12),
-              const _MeetingCard(),
-              const SizedBox(height: 28),
-              const SectionTitle(title: 'Pending captures', actionLabel: 'View all'),
-              const SizedBox(height: 12),
-              BlocBuilder<CaptureBloc, CaptureState>(
-                builder: (BuildContext context, CaptureState state) {
-                  if (state is CaptureLoaded) {
-                    return Column(
-                      children: state.captures
-                          .map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Card(
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-                                  leading: CircleAvatar(
-                                    backgroundColor: colors.secondaryContainer,
-                                    child: Icon(
-                                      Icons.mic_none_rounded,
-                                      color: colors.onSecondaryContainer,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    item.clientName,
-                                    style: const TextStyle(fontWeight: FontWeight.w800),
-                                  ),
-                                  subtitle: Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(item.summary),
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right_rounded),
-                                  onTap: () => _open(context, const CaptureView()),
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    );
-                  }
-                  if (state is CaptureFailure) {
-                    return Text(state.message);
-                  }
-                  return const Center(child: CircularProgressIndicator());
-                },
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 28),
+            const SectionTitle(title: 'Today'),
+            const SizedBox(height: 12),
+            const _MeetingCard(),
+            const SizedBox(height: 28),
+            const SectionTitle(title: 'Pending captures', actionLabel: 'View all'),
+            const SizedBox(height: 12),
+            _CaptureCard(
+              client: 'Acme',
+              subtitle: 'Discovery call ended 18 minutes ago',
+              onTap: () => _open(context, const CaptureView()),
+            ),
+            const SizedBox(height: 12),
+            _CaptureCard(
+              client: 'Northstar Industries',
+              subtitle: 'Product walkthrough · Yesterday',
+              onTap: () => _open(context, const CaptureView()),
+            ),
+          ],
         ),
       ),
     );
   }
 
   static Future<void> _open(BuildContext context, Widget view) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => view),
+    return Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => view));
+  }
+}
+
+class _CaptureCard extends StatelessWidget {
+  const _CaptureCard({required this.client, required this.subtitle, required this.onTap});
+
+  final String client;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+          child: const Icon(Icons.mic_none_rounded),
+        ),
+        title: Text(client, style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(subtitle),
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: onTap,
+      ),
     );
   }
 }
@@ -181,15 +157,15 @@ class _MeetingCard extends StatelessWidget {
         child: Row(
           children: <Widget>[
             Container(
-              width: 54,
+              width: 58,
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: const Column(
                 children: <Widget>[
-                  Text('11:30', style: TextStyle(fontWeight: FontWeight.w800)),
+                  Text('11:30', style: TextStyle(fontWeight: FontWeight.w900)),
                   Text('AM', style: TextStyle(fontSize: 11)),
                 ],
               ),
@@ -199,9 +175,9 @@ class _MeetingCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Acme discovery call', style: TextStyle(fontWeight: FontWeight.w800)),
+                  Text('Acme discovery call', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
                   SizedBox(height: 4),
-                  Text('Google Meet · 45 min'),
+                  Text('Google Meet · 45 min', style: TextStyle(color: Color(0xFF68716E))),
                 ],
               ),
             ),
