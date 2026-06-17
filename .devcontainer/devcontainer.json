@@ -1,0 +1,20 @@
+{
+  "name": "FocusChain Flutter",
+  "image": "ghcr.io/cirruslabs/flutter:stable",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Mr. Rex Flutter Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postCreateCommand": "flutter config --enable-web && flutter create . --platforms=web,android,ios --org labs.focuschain --project-name focuschainlabs_mobile && flutter pub get",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code",
+        "Dart-Code.flutter"
+      ]
+    }
+  }
+}
