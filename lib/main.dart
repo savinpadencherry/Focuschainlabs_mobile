@@ -9,7 +9,7 @@ import 'core/repository/auth_repository.dart';
 import 'core/repository/capture_repository.dart';
 import 'core/services/navigator_service.dart';
 import 'theme/theme.dart';
-import 'views/home/home_view.dart';
+import 'views/splash/splash_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +49,7 @@ class MainApplication extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           navigatorKey: app<NavigatorService>().navigatorKey,
           theme: AppTheme.light,
-          home: const HomeView(),
+          home: const SplashView(),
         ),
       ),
     );
