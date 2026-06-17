@@ -8,7 +8,7 @@
       "onAutoForward": "openBrowser"
     }
   },
-  "postCreateCommand": "flutter config --enable-web && flutter create . --platforms=web,android,ios --org labs.focuschain --project-name focuschainlabs_mobile && flutter pub get",
+  "postCreateCommand": "apt-get update && apt-get install -y git-lfs && git lfs install && flutter config --enable-web && flutter pub get",
   "customizations": {
     "vscode": {
       "extensions": [
