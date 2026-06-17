@@ -9,9 +9,11 @@ import '../../../../core/models/activity.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../bloc/capture_flow_bloc.dart';
+import 'capture_result_actions.dart';
 
-/// Success state: confirms the fan-out write and offers a one-tap undo for a
-/// short window (F5 reversibility).
+/// Success state: confirms the fan-out write, routes the rep onward (CRM
+/// desktop view + history, or the Trello board), and offers a one-tap undo for
+/// a short window (F5 reversibility).
 class WrittenPanel extends StatefulWidget {
   const WrittenPanel({super.key, required this.state});
 
@@ -46,45 +48,82 @@ class _WrittenPanelState extends State<WrittenPanel> {
     final ActivityEntry? entry = widget.state.activityEntry;
     final bool canUndo = _remaining > 0;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      child: Column(
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 88,
+                  height: 88,
+                  decoration: const BoxDecoration(
+                    color: AppColors.positive,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_rounded, color: Colors.white, size: 48),
+                ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+              ),
+              AppSpacing.vGapLg,
+              Center(
+                child: Text(
+                  entry?.isTask == true ? 'Task created' : 'Update written',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ).animate().fadeIn(delay: 150.ms),
+              AppSpacing.vGapSm,
+              Center(
+                child: Text(
+                  entry?.isTask == true
+                      ? 'Pushed to your Trello board.'
+                      : 'Logged to the CRM record for ${entry?.clientName ?? 'the client'}.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ).animate().fadeIn(delay: 250.ms),
+              AppSpacing.vGapXl,
+              if (entry != null) _Destinations(entry: entry),
+              AppSpacing.vGapXl,
+              if (entry != null) CaptureResultActions(entry: entry),
+            ],
+          ),
+        ),
+        _BottomBar(canUndo: canUndo, remaining: _remaining),
+      ],
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.canUndo, required this.remaining});
+
+  final bool canUndo;
+  final int remaining;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppColors.cardBorder)),
+      ),
+      child: Row(
         children: <Widget>[
-          const Spacer(),
-          Container(
-            width: 96,
-            height: 96,
-            decoration: const BoxDecoration(
-              color: AppColors.positive,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check_rounded, color: Colors.white, size: 52),
-          ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-          AppSpacing.vGapXl,
-          Text(
-            'Update written',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ).animate().fadeIn(delay: 150.ms),
-          AppSpacing.vGapSm,
-          Text(
-            'Saved to the CRM record for ${entry?.clientName ?? 'the client'}, '
-            'with tasks and follow-ups routed.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ).animate().fadeIn(delay: 250.ms),
-          AppSpacing.vGapXl,
-          if (entry != null) _Destinations(entry: entry),
-          const Spacer(),
           if (canUndo)
-            OutlinedButton.icon(
-              onPressed: () =>
-                  context.read<CaptureFlowBloc>().add(const CaptureUndoRequested()),
-              icon: const Icon(Icons.undo_rounded),
-              label: Text('Undo  ·  ${_remaining}s'),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => context
+                    .read<CaptureFlowBloc>()
+                    .add(const CaptureUndoRequested()),
+                icon: const Icon(Icons.undo_rounded),
+                label: Text('Undo · ${remaining}s'),
+              ),
             ),
-          AppSpacing.vGapMd,
-          SizedBox(
-            width: double.infinity,
+          if (canUndo) const SizedBox(width: 12),
+          Expanded(
+            flex: canUndo ? 1 : 2,
             child: FilledButton(
               onPressed: () => Navigator.of(context).maybePop(),
               child: const Text('Done'),
@@ -106,8 +145,8 @@ class _Destinations extends StatelessWidget {
     return Column(
       children: <Widget>[
         _DestinationRow(label: 'CRM record', ok: entry.crmOk),
-        _DestinationRow(label: 'Task tool (Trello)', ok: entry.taskOk),
-        _DestinationRow(label: 'Calendar follow-up', ok: entry.calendarOk),
+        if (entry.canOpenTrello || entry.isTask)
+          _DestinationRow(label: 'Task tool (Trello)', ok: entry.taskOk),
       ],
     );
   }
@@ -134,13 +173,8 @@ class _DestinationRow extends StatelessWidget {
           Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
           const Spacer(),
           if (!ok)
-            const Text(
-              'Retry',
-              style: TextStyle(
-                color: AppColors.atRisk,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            const Text('Retry',
+                style: TextStyle(color: AppColors.atRisk, fontWeight: FontWeight.w700)),
         ],
       ),
     );

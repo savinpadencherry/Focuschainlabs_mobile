@@ -14,6 +14,10 @@ class ActivityEntry extends Equatable {
     this.crmOk = true,
     this.taskOk = true,
     this.calendarOk = true,
+    this.isTask = false,
+    this.contactId,
+    this.crmWebUrl,
+    this.trelloUrl,
   });
 
   final String id;
@@ -27,7 +31,18 @@ class ActivityEntry extends Equatable {
   final bool taskOk;
   final bool calendarOk;
 
+  /// Whether this capture was primarily a task (→ Trello) vs a CRM update.
+  final bool isTask;
+
+  /// CRM contact id (for fetching interaction history) + the URLs the mobile
+  /// app opens in a webview: the CRM (desktop view) and the Trello board/card.
+  final String? contactId;
+  final String? crmWebUrl;
+  final String? trelloUrl;
+
   bool get hasFailure => !crmOk || !taskOk || !calendarOk;
+  bool get canOpenCrm => (crmWebUrl ?? '').isNotEmpty;
+  bool get canOpenTrello => (trelloUrl ?? '').isNotEmpty;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -38,6 +53,10 @@ class ActivityEntry extends Equatable {
         'crmOk': crmOk,
         'taskOk': taskOk,
         'calendarOk': calendarOk,
+        'isTask': isTask,
+        'contactId': contactId,
+        'crmWebUrl': crmWebUrl,
+        'trelloUrl': trelloUrl,
       };
 
   factory ActivityEntry.fromJson(Map<String, dynamic> json) => ActivityEntry(
@@ -49,11 +68,15 @@ class ActivityEntry extends Equatable {
         crmOk: json['crmOk'] as bool? ?? true,
         taskOk: json['taskOk'] as bool? ?? true,
         calendarOk: json['calendarOk'] as bool? ?? true,
+        isTask: json['isTask'] as bool? ?? false,
+        contactId: json['contactId'] as String?,
+        crmWebUrl: json['crmWebUrl'] as String?,
+        trelloUrl: json['trelloUrl'] as String?,
       );
 
   @override
   List<Object?> get props =>
-      <Object?>[id, clientName, description, updateType, timestamp];
+      <Object?>[id, clientName, description, updateType, timestamp, isTask];
 }
 
 /// A connected (or pending) integration shown on the profile/connections

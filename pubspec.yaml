@@ -20,6 +20,10 @@ dependencies:
   flutter_animate: ^4.5.0
   # Local persistence (demo mode + cached session). Swappable for Supabase.
   shared_preferences: ^2.3.2
+  # Networking + integrations
+  http: ^1.2.2                 # Gemini, CRM API, Trello REST
+  webview_flutter: ^4.10.0     # embedded CRM (desktop view) + Trello board (mobile)
+  url_launcher: ^6.3.1         # open CRM/Trello externally (web/desktop fallback)
 
 dev_dependencies:
   flutter_test:

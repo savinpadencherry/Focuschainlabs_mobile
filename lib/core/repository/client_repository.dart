@@ -12,6 +12,9 @@ class ClientRepository {
     return List<Client>.unmodifiable(_clients);
   }
 
+  /// Synchronous access to the in-memory clients (used for lookup grounding).
+  List<Client> get cached => List<Client>.unmodifiable(_clients);
+
   List<String> clientNames() => _clients.map((Client c) => c.name).toList();
 
   Client? byId(String id) {

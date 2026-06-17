@@ -1,31 +1,53 @@
 import 'package:get_it/get_it.dart';
 
+import 'config/app_config.dart';
 import 'repository/auth_repository.dart';
 import 'repository/capture_repository.dart';
 import 'repository/client_repository.dart';
 import 'repository/lookup_repository.dart';
 import 'repository/meeting_repository.dart';
 import 'services/ai/ai_service.dart';
+import 'services/ai/gemini_ai_service.dart';
 import 'services/ai/mock_ai_service.dart';
+import 'services/crm/http_leads_crm_service.dart';
+import 'services/crm/leads_crm_service.dart';
+import 'services/crm/mock_leads_crm_service.dart';
 import 'services/local_store.dart';
 import 'services/navigator_service.dart';
+import 'services/tasks/http_trello_service.dart';
+import 'services/tasks/mock_trello_service.dart';
+import 'services/tasks/trello_service.dart';
 import 'services/voice/voice_service.dart';
 
-/// Global service locator. Services and repositories are registered here once
-/// and resolved everywhere via [app], keeping widgets free of construction
-/// logic. To go live, swap [MockAiService]/[MockVoiceService] for the real
-/// implementations — nothing else changes.
+/// Global service locator. Implementations are chosen at startup from
+/// [AppConfig]: when a real key/endpoint is provided the live service is used,
+/// otherwise the offline mock keeps the app fully runnable. Swapping demo ↔
+/// live touches only this file.
 final GetIt app = GetIt.instance;
 
 void initializeGetIt() {
   if (app.isRegistered<NavigatorService>()) return;
 
-  // Services
+  // Infra services
   app
     ..registerLazySingleton<NavigatorService>(NavigatorService.new)
     ..registerLazySingleton<LocalStore>(LocalStore.new)
-    ..registerLazySingleton<AiService>(MockAiService.new)
     ..registerLazySingleton<VoiceService>(MockVoiceService.new);
+
+  // AI — Gemini when a key is present, else mock.
+  app.registerLazySingleton<AiService>(
+    () => AppConfig.hasGemini ? GeminiAiService() : const MockAiService(),
+  );
+
+  // CRM — Leads Agent FastAPI when configured, else mock.
+  app.registerLazySingleton<LeadsCrmService>(
+    () => AppConfig.hasCrmApi ? HttpLeadsCrmService() : const MockLeadsCrmService(),
+  );
+
+  // Tasks — Trello REST when configured, else mock.
+  app.registerLazySingleton<TrelloService>(
+    () => AppConfig.hasTrello ? HttpTrelloService() : const MockTrelloService(),
+  );
 
   // Repositories
   app
@@ -35,7 +57,12 @@ void initializeGetIt() {
     ..registerLazySingleton<ClientRepository>(ClientRepository.new)
     ..registerLazySingleton<MeetingRepository>(MeetingRepository.new)
     ..registerLazySingleton<CaptureRepository>(
-      () => CaptureRepository(ai: app<AiService>(), store: app<LocalStore>()),
+      () => CaptureRepository(
+        ai: app<AiService>(),
+        store: app<LocalStore>(),
+        crm: app<LeadsCrmService>(),
+        trello: app<TrelloService>(),
+      ),
     )
     ..registerLazySingleton<LookupRepository>(
       () => LookupRepository(

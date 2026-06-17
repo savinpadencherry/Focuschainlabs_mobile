@@ -111,6 +111,28 @@ Flutter (this repo)
 
 ---
 
+## 3.8 Leads Agent CRM + Gemini + Trello (implemented)
+
+These three integrations are **already wired** behind interfaces and activate
+automatically when you provide the keys/endpoints via `--dart-define`
+(otherwise the offline mocks run). Full steps — Render deploy, Trello setup,
+Gemini key, and the launch command — are in
+**[docs/leads_agent_api/README.md](leads_agent_api/README.md)**, which also
+ships the paste-ready FastAPI (`mobile_api.py`) + `render.yaml` for the Leads
+Agent repo.
+
+| Integration | App service (this repo) | What you provide |
+|-------------|-------------------------|------------------|
+| **Gemini 2.5 Flash** (extraction + lookup) | `GeminiAiService` | `GEMINI_API_KEY` |
+| **Leads Agent CRM** (send leads, read history) | `HttpLeadsCrmService` → FastAPI on Render | `CRM_API_BASE_URL`, `CRM_API_TOKEN`, `CRM_WEB_URL` |
+| **Trello** (action items → board) | `HttpTrelloService` | `TRELLO_KEY/TOKEN/LIST_ID/BOARD_URL` |
+
+Routing: a **CRM update** shows interaction history + opens the CRM in an in-app
+**desktop-view webview**; a **task** creates a Trello card and opens the
+**board webview**.
+
+---
+
 ## 4. Going from demo mode to live
 
 The whole point of the architecture: **flip one flag and replace mock classes.**
