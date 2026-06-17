@@ -1,0 +1,25 @@
+# Render service for the Mr. Rex mobile API.
+#
+# Add this service to the render.yaml in the Focuschainlabs_Leads_Agent repo
+# (or create the repo's render.yaml from this). Render's free tier runs it 24/7
+# (with cold starts after idle). The Streamlit CRM stays where it is — this is
+# just the API the mobile app talks to.
+
+services:
+  - type: web
+    name: fcl-crm-mobile-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn mobile_api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MOBILE_API_KEY        # shared secret; matches CRM_API_TOKEN in the app
+        sync: false
+      - key: CRM_ORG               # tenant id used by load_crm/save_crm
+        value: fcl
+      - key: CRM_WEB_URL           # Streamlit CRM URL returned to the app
+        sync: false
+      - key: GH_TOKEN              # whatever your crm_store uses to commit
+        sync: false
+      - key: GEMINI_API_KEY        # only if the CRM's _llm_refresh is used
+        sync: false
