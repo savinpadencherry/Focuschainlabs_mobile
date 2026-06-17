@@ -25,33 +25,43 @@ class _MainShellViewState extends State<MainShellView> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (int value) {
-          setState(() => _index = value);
-        },
-        destinations: const <NavigationDestination>[
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: NavigationBar(
+              height: 72,
+              selectedIndex: _index,
+              onDestinationSelected: (int value) {
+                setState(() => _index = value);
+              },
+              destinations: const <NavigationDestination>[
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.calendar_month_outlined),
+                  selectedIcon: Icon(Icons.calendar_month_rounded),
+                  label: 'Meetings',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.mic_none_rounded),
+                  selectedIcon: Icon(Icons.mic_rounded),
+                  label: 'Captures',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline_rounded),
+                  selectedIcon: Icon(Icons.person_rounded),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Meetings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.mic_none_rounded),
-            selectedIcon: Icon(Icons.mic_rounded),
-            label: 'Captures',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -77,21 +87,31 @@ class _ProfileView extends StatelessWidget {
           ),
           const Center(child: Text('CTO · FocusChain Labs')),
           const SizedBox(height: 28),
-          const Card(
+          Card(
             child: Column(
               children: <Widget>[
-                ListTile(
+                const ListTile(
                   leading: Icon(Icons.cloud_done_outlined),
                   title: Text('Connections'),
                   subtitle: Text('Calendar connected · CRM pending'),
                   trailing: Icon(Icons.chevron_right_rounded),
                 ),
-                Divider(height: 1),
-                ListTile(
+                const Divider(height: 1),
+                const ListTile(
                   leading: Icon(Icons.shield_outlined),
                   title: Text('Organisation & access'),
                   subtitle: Text('FocusChain Labs · Admin'),
                   trailing: Icon(Icons.chevron_right_rounded),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.info_outline_rounded),
+                  title: const Text('App build'),
+                  subtitle: const Text('Mr. Rex UI Preview 0.3'),
+                  trailing: Chip(
+                    label: const Text('LIVE'),
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  ),
                 ),
               ],
             ),
