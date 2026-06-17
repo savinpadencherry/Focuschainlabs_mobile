@@ -25,6 +25,7 @@ abstract final class AppSpacing {
   static const Widget gapXl = SizedBox(height: xl, width: xl);
   static const Widget gapXxl = SizedBox(height: xxl, width: xxl);
 
+  static const Widget vGapXs = SizedBox(height: xs);
   static const Widget vGapSm = SizedBox(height: sm);
   static const Widget vGapMd = SizedBox(height: md);
   static const Widget vGapLg = SizedBox(height: lg);

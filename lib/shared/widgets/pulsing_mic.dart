@@ -91,7 +91,7 @@ class _PulsingMicState extends State<PulsingMic>
                 boxShadow: <BoxShadow>[
                   BoxShadow(
                     color: (widget.recording ? AppColors.negative : AppColors.primary)
-                        .withOpacity(0.4),
+                        .withValues(alpha: 0.4),
                     blurRadius: 30,
                     offset: const Offset(0, 12),
                   ),
@@ -123,7 +123,7 @@ class _PulsingMicState extends State<PulsingMic>
       height: widget.size + (widget.size * 0.7 * t),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.negative.withOpacity((1 - t) * 0.18),
+        color: AppColors.negative.withValues(alpha: (1 - t) * 0.18),
       ),
     );
   }

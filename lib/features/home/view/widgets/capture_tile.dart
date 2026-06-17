@@ -22,7 +22,7 @@ class CaptureTile extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.14),
+              color: AppColors.accent.withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.mic_none_rounded, color: Color(0xFFB45309)),

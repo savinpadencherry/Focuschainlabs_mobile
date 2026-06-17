@@ -52,7 +52,7 @@ class _AppCardState extends State<AppCard> {
             border: Border.all(color: widget.borderColor),
             boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Colors.black.withOpacity(_pressed ? 0.02 : 0.04),
+                color: Colors.black.withValues(alpha: _pressed ? 0.02 : 0.04),
                 blurRadius: _pressed ? 8 : 18,
                 offset: const Offset(0, 6),
               ),

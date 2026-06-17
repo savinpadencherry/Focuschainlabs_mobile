@@ -32,7 +32,7 @@ class RexLogo extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.34),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: gradient.last.withOpacity(0.35),
+            color: gradient.last.withValues(alpha: 0.35),
             blurRadius: size * 0.4,
             offset: Offset(0, size * 0.16),
           ),

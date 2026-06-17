@@ -232,7 +232,7 @@ class SentimentField extends StatelessWidget {
               fontWeight: FontWeight.w700,
               fontSize: 12.5,
             ),
-            backgroundColor: color.withOpacity(0.12),
+            backgroundColor: color.withValues(alpha: 0.12),
           );
         }).toList(),
       ),
@@ -253,7 +253,7 @@ class StageChangeField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.positive.withOpacity(0.1),
+          color: AppColors.positive.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
         child: Row(

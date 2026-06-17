@@ -68,19 +68,19 @@ abstract final class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primary.withOpacity(0.12),
+        indicatorColor: AppColors.primary.withValues(alpha: 0.12),
         elevation: 0,
         height: 72,
-        labelTextStyle: MaterialStateProperty.resolveWith((Set<MaterialState> states) {
-          final bool selected = states.contains(MaterialState.selected);
+        labelTextStyle: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+          final bool selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 12,
             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
             color: selected ? AppColors.primary : AppColors.textSecondary,
           );
         }),
-        iconTheme: MaterialStateProperty.resolveWith((Set<MaterialState> states) {
-          final bool selected = states.contains(MaterialState.selected);
+        iconTheme: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+          final bool selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected ? AppColors.primary : AppColors.textSecondary,
           );

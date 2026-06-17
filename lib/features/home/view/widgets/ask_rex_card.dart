@@ -25,7 +25,7 @@ class AskRexCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.32),
+              color: AppColors.primary.withValues(alpha: 0.32),
               blurRadius: 30,
               offset: const Offset(0, 14),
             ),
@@ -37,7 +37,7 @@ class AskRexCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.16),
+                color: Colors.white.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
               ),
               child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
@@ -56,7 +56,7 @@ class AskRexCard extends StatelessWidget {
             Text(
               AppStrings.askRexBody,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 height: 1.45,
                 fontSize: 15,
               ),

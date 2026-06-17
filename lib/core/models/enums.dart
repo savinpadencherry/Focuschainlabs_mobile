@@ -1,5 +1,5 @@
-/// Enumerations shared across the domain. Values mirror the spec's extraction
-/// schema and data model so they serialise cleanly to/from the backend.
+// Enumerations shared across the domain. Values mirror the spec's extraction
+// schema and data model so they serialise cleanly to/from the backend.
 
 /// Update types the conversational engine can produce (spec §8).
 enum UpdateType { comment, interaction, stageChange, followUp }

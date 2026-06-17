@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/get.dart';
 import '../../../../core/models/client.dart';
+import '../../../../core/models/enums.dart';
 import '../../../../core/repository/client_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -34,7 +35,7 @@ class Client360Card extends StatelessWidget {
             children: <Widget>[
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.primary.withOpacity(0.12),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                 child: Text(
                   client.initials,
                   style: const TextStyle(

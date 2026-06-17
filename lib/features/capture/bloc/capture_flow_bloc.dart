@@ -3,7 +3,6 @@ import 'package:equatable/equatable.dart';
 
 import '../../../core/models/activity.dart';
 import '../../../core/models/capture.dart';
-import '../../../core/models/enums.dart';
 import '../../../core/models/extraction.dart';
 import '../../../core/repository/capture_repository.dart';
 import '../../../core/services/voice/voice_service.dart';
