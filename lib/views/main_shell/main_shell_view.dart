@@ -15,50 +15,77 @@ class _MainShellViewState extends State<MainShellView> {
   int _index = 0;
 
   static const List<Widget> _pages = <Widget>[
-    HomeView(),
-    MeetingsView(),
-    PendingCaptureView(),
-    _ProfileView(),
+    HomeView(key: ValueKey<String>('home')),
+    MeetingsView(key: ValueKey<String>('meetings')),
+    PendingCaptureView(key: ValueKey<String>('captures')),
+    _ProfileView(key: ValueKey<String>('profile')),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final Animation<Offset> slide = Tween<Offset>(
+            begin: const Offset(0.04, 0),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: _pages[_index],
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: NavigationBar(
-              height: 72,
-              selectedIndex: _index,
-              onDestinationSelected: (int value) {
-                setState(() => _index = value);
-              },
-              destinations: const <NavigationDestination>[
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.calendar_month_outlined),
-                  selectedIcon: Icon(Icons.calendar_month_rounded),
-                  label: 'Meetings',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.mic_none_rounded),
-                  selectedIcon: Icon(Icons.mic_rounded),
-                  label: 'Captures',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: 'Profile',
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  color: Color(0x16000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
                 ),
               ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(26),
+              child: NavigationBar(
+                height: 72,
+                selectedIndex: _index,
+                onDestinationSelected: (int value) {
+                  if (value != _index) setState(() => _index = value);
+                },
+                destinations: const <NavigationDestination>[
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.calendar_month_outlined),
+                    selectedIcon: Icon(Icons.calendar_month_rounded),
+                    label: 'Meetings',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.mic_none_rounded),
+                    selectedIcon: Icon(Icons.mic_rounded),
+                    label: 'Captures',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -68,18 +95,27 @@ class _MainShellViewState extends State<MainShellView> {
 }
 
 class _ProfileView extends StatelessWidget {
-  const _ProfileView();
+  const _ProfileView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: <Widget>[
-          const CircleAvatar(
-            radius: 42,
-            child: Text('SP', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          Center(
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 500),
+              tween: Tween<double>(begin: 0.85, end: 1),
+              curve: Curves.easeOutBack,
+              builder: (_, double value, Widget? child) => Transform.scale(scale: value, child: child),
+              child: const CircleAvatar(
+                radius: 44,
+                child: Text('SP', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           const Center(
@@ -107,10 +143,10 @@ class _ProfileView extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.info_outline_rounded),
                   title: const Text('App build'),
-                  subtitle: const Text('Mr. Rex UI Preview 0.3'),
+                  subtitle: const Text('Mr. Rex Interactive Preview 0.4'),
                   trailing: Chip(
                     label: const Text('LIVE'),
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor: colors.primaryContainer,
                   ),
                 ),
               ],
