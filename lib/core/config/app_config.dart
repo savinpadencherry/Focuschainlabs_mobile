@@ -44,6 +44,12 @@ abstract final class AppConfig {
   static String get crmWebUrl =>
       _read('CRM_WEB_URL', const String.fromEnvironment('CRM_WEB_URL'));
 
+  // --- Supabase (CRM database) ---
+  static String get supabaseUrl =>
+      _read('SUPABASE_URL', const String.fromEnvironment('SUPABASE_URL'));
+  static String get supabaseAnonKey =>
+      _read('SUPABASE_ANON_KEY', const String.fromEnvironment('SUPABASE_ANON_KEY'));
+
   // --- Trello ---
   static String get trelloKey =>
       _read('TRELLO_KEY', const String.fromEnvironment('TRELLO_KEY'));
@@ -56,6 +62,8 @@ abstract final class AppConfig {
 
   // --- Capability flags ---
   static bool get hasGemini => geminiApiKey.isNotEmpty;
+  static bool get hasSupabase =>
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
   static bool get hasGithubCrm => githubToken.isNotEmpty && githubCrmRepo.isNotEmpty;
   static bool get hasCrmWeb => crmWebUrl.isNotEmpty;
   static bool get hasTrello =>
