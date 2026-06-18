@@ -3,34 +3,32 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>749976057554-2t3ocjjml2mlgu22enghcqvia35uhmp5.apps.googleusercontent.com</string>
+	<string>555659919372-5putv4u0et7ia2n93eh2avf1ci6q7dfn.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.749976057554-2t3ocjjml2mlgu22enghcqvia35uhmp5</string>
-	<key>ANDROID_CLIENT_ID</key>
-	<string>749976057554-ckr8247dnt7kcdpe2i7shq7mpluk80k4.apps.googleusercontent.com</string>
+	<string>com.googleusercontent.apps.555659919372-5putv4u0et7ia2n93eh2avf1ci6q7dfn</string>
 	<key>API_KEY</key>
-	<string>AIzaSyBGn9veKBLb9D3zRA7K7UM6tInNREvH3RI</string>
+	<string>AIzaSyDZX5MUhXMq01d96ecWi18OXRoCgiLodl0</string>
 	<key>GCM_SENDER_ID</key>
-	<string>749976057554</string>
+	<string>555659919372</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>labs.focuschain.focuschainlabsMobile</string>
 	<key>PROJECT_ID</key>
-	<string>focuschainlabs</string>
+	<string>focuschainlabs-72a67</string>
 	<key>STORAGE_BUCKET</key>
-	<string>focuschainlabs.firebasestorage.app</string>
+	<string>focuschainlabs-72a67.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:749976057554:ios:ba5ed3f1a8f4008724df0b</string>
+	<string>1:555659919372:ios:13bcb5273a72b5799bae29</string>
 </dict>
 </plist>
