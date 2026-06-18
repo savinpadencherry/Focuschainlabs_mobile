@@ -1,42 +1,41 @@
 {
   "project_info": {
-    "project_number": "749976057554",
-    "project_id": "focuschainlabs",
-    "storage_bucket": "focuschainlabs.firebasestorage.app"
+    "project_number": "555659919372",
+    "project_id": "focuschainlabs-72a67",
+    "storage_bucket": "focuschainlabs-72a67.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:749976057554:android:dc7c089777f190b624df0b",
+        "mobilesdk_app_id": "1:555659919372:android:787d4a43f0f6e50e9bae29",
         "android_client_info": {
           "package_name": "labs.focuschain.focuschainlabs_mobile"
         }
       },
       "oauth_client": [
         {
-          "client_id": "749976057554-ckr8247dnt7kcdpe2i7shq7mpluk80k4.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "labs.focuschain.focuschainlabs_mobile",
-            "certificate_hash": "40472ae77071a807e772e158564a0514f46750f0"
-          }
-        },
-        {
-          "client_id": "749976057554-envg1nj70e8elk840mj764sv2hjs5ml5.apps.googleusercontent.com",
+          "client_id": "555659919372-fc1gqotostq923657d25orc241tmosjh.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AI\u007aaSyARvE418BN97HihP8tW-ccoRnjw2zfjzh8"
+          "current_key": "AIzaSyBN0UOt_tzo7zlWJpEfLiuczQIBMzAn-a4"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "749976057554-envg1nj70e8elk840mj764sv2hjs5ml5.apps.googleusercontent.com",
+              "client_id": "555659919372-fc1gqotostq923657d25orc241tmosjh.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "555659919372-5putv4u0et7ia2n93eh2avf1ci6q7dfn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "labs.focuschain.focuschainlabsMobile"
+              }
             }
           ]
         }
