@@ -4,43 +4,63 @@ import 'config/app_config.dart';
 import 'repository/auth_repository.dart';
 import 'repository/capture_repository.dart';
 import 'repository/client_repository.dart';
+import 'repository/firebase_auth_repository.dart';
 import 'repository/lookup_repository.dart';
 import 'repository/meeting_repository.dart';
 import 'services/ai/ai_service.dart';
 import 'services/ai/gemini_ai_service.dart';
 import 'services/ai/mock_ai_service.dart';
+import 'services/auth/google_auth_service.dart';
+import 'services/calendar/calendar_service.dart';
+import 'services/calendar/google_calendar_service.dart';
+import 'services/calendar/mock_calendar_service.dart';
 import 'services/crm/github_crm_service.dart';
 import 'services/crm/leads_crm_service.dart';
 import 'services/crm/mock_leads_crm_service.dart';
+import 'services/firebase/analytics_service.dart';
+import 'services/firebase/firebase_bootstrap.dart';
 import 'services/local_store.dart';
 import 'services/navigator_service.dart';
 import 'services/tasks/http_trello_service.dart';
 import 'services/tasks/mock_trello_service.dart';
 import 'services/tasks/trello_service.dart';
+import 'services/voice/device_voice_service.dart';
 import 'services/voice/voice_service.dart';
 
-/// Global service locator. Implementations are chosen at startup from
-/// [AppConfig]: when a real key/endpoint is provided the live service is used,
-/// otherwise the offline mock keeps the app fully runnable. Swapping demo ↔
-/// live touches only this file.
+/// Global service locator. Implementations are chosen at startup: Firebase
+/// services activate once [FirebaseBootstrap.ready] is true (config present),
+/// other integrations activate when their `.env` keys are set; otherwise the
+/// offline mocks keep the app fully runnable. Swapping demo ↔ live touches only
+/// this file.
 final GetIt app = GetIt.instance;
 
 void initializeGetIt() {
   if (app.isRegistered<NavigatorService>()) return;
+  final bool firebase = FirebaseBootstrap.ready;
 
   // Infra services
   app
     ..registerLazySingleton<NavigatorService>(NavigatorService.new)
     ..registerLazySingleton<LocalStore>(LocalStore.new)
-    ..registerLazySingleton<VoiceService>(MockVoiceService.new);
+    ..registerLazySingleton<VoiceService>(DeviceVoiceService.new)
+    ..registerLazySingleton<GoogleAuthService>(GoogleAuthService.new)
+    ..registerLazySingleton<AnalyticsService>(
+      () => firebase ? FirebaseAnalyticsService() : const NoopAnalyticsService(),
+    );
 
   // AI — Gemini when a key is present, else mock.
   app.registerLazySingleton<AiService>(
     () => AppConfig.hasGemini ? GeminiAiService() : const MockAiService(),
   );
 
-  // CRM — read/write the Leads Agent repo's contacts.json when a GitHub token
-  // is configured, else mock.
+  // Calendar — Google Calendar when signed in via Firebase, else mock.
+  app.registerLazySingleton<CalendarService>(
+    () => firebase
+        ? GoogleCalendarService(auth: app<GoogleAuthService>())
+        : const MockCalendarService(),
+  );
+
+  // CRM — the Leads Agent repo's contacts.json when a GitHub token is set, else mock.
   app.registerLazySingleton<LeadsCrmService>(
     () => AppConfig.hasGithubCrm ? GithubCrmService() : const MockLeadsCrmService(),
   );
@@ -53,10 +73,17 @@ void initializeGetIt() {
   // Repositories
   app
     ..registerLazySingleton<AuthRepository>(
-      () => AuthRepository(store: app<LocalStore>()),
+      () => firebase
+          ? FirebaseAuthRepository(
+              google: app<GoogleAuthService>(),
+              analytics: app<AnalyticsService>(),
+            )
+          : DemoAuthRepository(store: app<LocalStore>()),
     )
     ..registerLazySingleton<ClientRepository>(ClientRepository.new)
-    ..registerLazySingleton<MeetingRepository>(MeetingRepository.new)
+    ..registerLazySingleton<MeetingRepository>(
+      () => MeetingRepository(calendar: app<CalendarService>()),
+    )
     ..registerLazySingleton<CaptureRepository>(
       () => CaptureRepository(
         ai: app<AiService>(),

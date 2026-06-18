@@ -7,15 +7,7 @@ sealed class CaptureFlowEvent extends Equatable {
   List<Object?> get props => const <Object?>[];
 }
 
-final class CaptureRecordingStarted extends CaptureFlowEvent {
-  const CaptureRecordingStarted();
-}
-
-final class CaptureRecordingStopped extends CaptureFlowEvent {
-  const CaptureRecordingStopped();
-}
-
-/// Typed fallback path (F4: typing is a fallback, never the default).
+/// The composed note (typed or transcribed) submitted to Rex for extraction.
 final class CaptureManualSubmitted extends CaptureFlowEvent {
   const CaptureManualSubmitted(this.transcript);
 

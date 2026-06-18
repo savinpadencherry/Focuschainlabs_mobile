@@ -5,24 +5,19 @@ import '../../../core/models/activity.dart';
 import '../../../core/models/capture.dart';
 import '../../../core/models/extraction.dart';
 import '../../../core/repository/capture_repository.dart';
-import '../../../core/services/voice/voice_service.dart';
 
 part 'capture_flow_event.dart';
 part 'capture_flow_state.dart';
 
 /// Orchestrates a single capture session end-to-end (spec §6.1 / §6.2):
-/// record → transcribe → extract → review/edit → confirm/write → undo. Shared
-/// by the conversational path (F2) and post-meeting capture (F3/F4).
+/// transcript → extract → review/edit → confirm/write → undo. Voice capture is
+/// handled in the composer (live partials); the bloc receives the final text.
 class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
   CaptureFlowBloc({
     required CaptureRepository captureRepository,
-    required VoiceService voiceService,
     Capture? source,
   })  : _captures = captureRepository,
-        _voice = voiceService,
         super(CaptureFlowState(source: source)) {
-    on<CaptureRecordingStarted>(_onRecordingStarted);
-    on<CaptureRecordingStopped>(_onRecordingStopped);
     on<CaptureManualSubmitted>(_onManualSubmitted);
     on<CaptureExtractionChanged>(_onExtractionChanged);
     on<CaptureActionItemToggled>(_onActionItemToggled);
@@ -32,23 +27,6 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
   }
 
   final CaptureRepository _captures;
-  final VoiceService _voice;
-
-  void _onRecordingStarted(
-    CaptureRecordingStarted event,
-    Emitter<CaptureFlowState> emit,
-  ) {
-    emit(state.copyWith(status: CaptureFlowStatus.recording, message: null));
-  }
-
-  Future<void> _onRecordingStopped(
-    CaptureRecordingStopped event,
-    Emitter<CaptureFlowState> emit,
-  ) async {
-    emit(state.copyWith(status: CaptureFlowStatus.transcribing));
-    final String transcript = await _voice.transcribe();
-    await _processTranscript(transcript, emit);
-  }
 
   Future<void> _onManualSubmitted(
     CaptureManualSubmitted event,

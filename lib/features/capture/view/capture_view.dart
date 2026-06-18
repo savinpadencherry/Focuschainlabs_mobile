@@ -5,7 +5,6 @@ import '../../../core/get.dart';
 import '../../../core/models/capture.dart';
 import '../../../core/repository/capture_repository.dart';
 import '../../../core/services/navigator_service.dart';
-import '../../../core/services/voice/voice_service.dart';
 import '../../../core/utils/responsive.dart';
 import '../bloc/capture_flow_bloc.dart';
 import 'widgets/processing_panel.dart';
@@ -27,7 +26,6 @@ class CaptureView extends StatelessWidget {
         BlocProvider<CaptureFlowBloc>(
           create: (_) => CaptureFlowBloc(
             captureRepository: app<CaptureRepository>(),
-            voiceService: app<VoiceService>(),
             source: source,
           ),
           child: const CaptureView(),

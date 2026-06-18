@@ -1,33 +1,28 @@
-import 'dart:async';
-import 'dart:math';
+/// A single (possibly partial) speech-to-text result.
+class VoiceResult {
+  const VoiceResult(this.text, {this.isFinal = false});
 
-/// Speech-to-text contract (spec §7, decision D5 — on-device vs hosted STT).
-/// The UI depends only on this; the real provider plugs in behind it.
-abstract interface class VoiceService {
-  /// Whether mic permission/availability allows live capture.
-  Future<bool> isAvailable();
-
-  /// Simulated/real transcript. In demo mode a representative note is returned
-  /// so the downstream extraction → review → write loop is exercised.
-  Future<String> transcribe();
+  final String text;
+  final bool isFinal;
 }
 
-/// Offline stand-in that returns a realistic spoken note after a short delay.
-class MockVoiceService implements VoiceService {
-  const MockVoiceService();
+/// Speech-to-text contract (spec §7 / decision D5: on-device STT). The UI
+/// streams partial transcripts live into the composer; [DeviceVoiceService]
+/// backs it with the platform recogniser, with a mock for tests/demo.
+abstract interface class VoiceService {
+  /// Initialise the engine and request microphone permission. Returns false if
+  /// speech isn't available on this device/platform (the UI then falls back to
+  /// typing).
+  Future<bool> available();
 
-  static const List<String> _samples = <String>[
-    'Called Acme, they want a revised quote by Friday, deal looks warm.',
-    'Met Northstar for the product walkthrough, keen on a two-depot pilot next week.',
-    'Spoke to Zephyr, they pushed back on pricing and are comparing alternatives, deal at risk.',
-  ];
+  /// Begin listening. [onResult] fires repeatedly with growing partial text;
+  /// [onDone] fires when recognition stops (silence, final result, or error).
+  Future<void> listen({
+    required void Function(VoiceResult result) onResult,
+    void Function()? onDone,
+  });
 
-  @override
-  Future<bool> isAvailable() async => true;
+  Future<void> stop();
 
-  @override
-  Future<String> transcribe() async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    return _samples[Random().nextInt(_samples.length)];
-  }
+  bool get isListening;
 }

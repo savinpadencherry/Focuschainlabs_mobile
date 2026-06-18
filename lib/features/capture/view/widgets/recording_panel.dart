@@ -24,22 +24,45 @@ class _RecordingPanelState extends State<RecordingPanel> {
   final TextEditingController _controller = TextEditingController();
   final VoiceService _voice = app<VoiceService>();
   bool _listening = false;
+  String _base = '';
 
   @override
   void dispose() {
+    _voice.stop();
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _speak() async {
+  Future<void> _toggleListen() async {
+    if (_listening) {
+      await _voice.stop();
+      return; // onDone resets the listening flag
+    }
+    FocusScope.of(context).unfocus();
+    final bool ok = await _voice.available();
+    if (!ok) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone unavailable — please type your note.')),
+        );
+      }
+      return;
+    }
+    _base = _controller.text.trim();
     setState(() => _listening = true);
-    final String text = await _voice.transcribe();
-    if (!mounted) return;
-    final String existing = _controller.text.trim();
-    _controller.text = existing.isEmpty ? text : '$existing $text';
-    _controller.selection =
-        TextSelection.collapsed(offset: _controller.text.length);
-    setState(() => _listening = false);
+    await _voice.listen(
+      onResult: (VoiceResult r) {
+        if (!mounted) return;
+        final String joined = _base.isEmpty ? r.text : '$_base ${r.text}';
+        _controller.value = TextEditingValue(
+          text: joined,
+          selection: TextSelection.collapsed(offset: joined.length),
+        );
+      },
+      onDone: () {
+        if (mounted) setState(() => _listening = false);
+      },
+    );
   }
 
   void _send() {
@@ -88,7 +111,7 @@ class _RecordingPanelState extends State<RecordingPanel> {
           AppSpacing.vGapLg,
           Row(
             children: <Widget>[
-              _MicButton(listening: _listening, onTap: _listening ? null : _speak),
+              _MicButton(listening: _listening, onTap: _toggleListen),
               const SizedBox(width: 12),
               Expanded(child: _SendButton(onTap: _send)),
             ],
@@ -166,12 +189,10 @@ class _MicButton extends StatelessWidget {
               ? const <BoxShadow>[BoxShadow(color: AppColors.greenGlow, blurRadius: 18)]
               : null,
         ),
-        child: listening
-            ? const Padding(
-                padding: EdgeInsets.all(17),
-                child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
-              )
-            : const Icon(Icons.mic_rounded, color: AppColors.green),
+        child: Icon(
+          listening ? Icons.stop_rounded : Icons.mic_rounded,
+          color: listening ? Colors.white : AppColors.green,
+        ),
       ),
     );
   }

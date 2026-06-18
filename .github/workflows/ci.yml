@@ -1,0 +1,90 @@
+name: CI & UAT build
+
+# Quality gate on every push/PR, plus tester artifacts:
+#   • Android APK (uploaded as a build artifact for sideloading)
+#   • Flutter web (deployed to GitHub Pages from main)
+#
+# Real-data UAT: set repo Secrets (GEMINI_API_KEY, CRM_GITHUB_TOKEN, CRM_WEB_URL,
+# TRELLO_*). They're baked only into the private APK artifact — the public web
+# demo always builds in safe mock mode.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  tester-apk:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Inject keys (real-data UAT; empty → mock mode)
+        run: |
+          cat > .env <<EOF
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL=gemini-2.5-flash
+          GITHUB_TOKEN=${{ secrets.CRM_GITHUB_TOKEN }}
+          GITHUB_CRM_REPO=savinpadencherry/Focuschainlabs_Leads_Agent
+          GITHUB_CRM_PATH=data/crm/contacts.json
+          GITHUB_CRM_BRANCH=main
+          CRM_WEB_URL=${{ secrets.CRM_WEB_URL }}
+          TRELLO_KEY=${{ secrets.TRELLO_KEY }}
+          TRELLO_TOKEN=${{ secrets.TRELLO_TOKEN }}
+          TRELLO_LIST_ID=${{ secrets.TRELLO_LIST_ID }}
+          TRELLO_BOARD_URL=${{ secrets.TRELLO_BOARD_URL }}
+          EOF
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mr-rex-android
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  web-demo:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # Public demo → mock mode (no secrets baked in).
+      - run: flutter build web --release --base-href /Focuschainlabs_mobile/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mr-rex-web
+          path: build/web
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web

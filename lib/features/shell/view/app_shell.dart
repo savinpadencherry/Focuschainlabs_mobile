@@ -1,7 +1,8 @@
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/utils/responsive.dart';
 import '../../capture/view/capture_view.dart';
 import '../../home/view/home_page.dart';
@@ -92,39 +93,27 @@ class _MobileShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: body,
       floatingActionButton: const _TalkToRexFab(),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              boxShadow: const <BoxShadow>[
-                BoxShadow(
-                  color: Color(0x16000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 8),
-                ),
-              ],
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: CurvedNavigationBar(
+        index: index,
+        height: 64,
+        color: AppColors.surface,
+        buttonBackgroundColor: AppColors.green,
+        backgroundColor: Colors.transparent,
+        animationCurve: AppMotion.ease,
+        animationDuration: const Duration(milliseconds: 380),
+        onTap: onSelect,
+        items: <Widget>[
+          for (int i = 0; i < navDestinations.length; i++)
+            Icon(
+              i == index ? navDestinations[i].selectedIcon : navDestinations[i].icon,
+              color: i == index ? Colors.white : AppColors.inkSoft,
+              size: 26,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              child: NavigationBar(
-                selectedIndex: index,
-                onDestinationSelected: onSelect,
-                destinations: navDestinations
-                    .map((NavItem n) => NavigationDestination(
-                          icon: Icon(n.icon),
-                          selectedIcon: Icon(n.selectedIcon),
-                          label: n.label,
-                        ))
-                    .toList(),
-              ),
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }
