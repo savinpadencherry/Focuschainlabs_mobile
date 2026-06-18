@@ -18,6 +18,7 @@ dependencies:
   # UI / UX
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
+  curved_navigation_bar: ^1.0.6
   # Local persistence (demo mode + cached session). Swappable for Supabase.
   shared_preferences: ^2.3.2
   # Networking + integrations
