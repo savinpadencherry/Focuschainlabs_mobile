@@ -1,5 +1,6 @@
-import 'dart:async';
-import 'dart:math';
+/// A single (possibly partial) speech-to-text result.
+class VoiceResult {
+  const VoiceResult(this.text, {this.isFinal = false});
 
 /// Speech-to-text contract. The UI depends only on this; a device-backed or
 /// mock implementation plugs in behind it via GetIt.
@@ -29,11 +30,12 @@ abstract interface class VoiceService {
 class MockVoiceService implements VoiceService {
   MockVoiceService();
 
-  static const List<String> _samples = <String>[
-    'Called Acme, they want a revised quote by Friday, deal looks warm.',
-    'Met Northstar for the product walkthrough, keen on a two-depot pilot next week.',
-    'Spoke to Zephyr, they pushed back on pricing and are comparing alternatives, deal at risk.',
-  ];
+  /// Begin listening. [onResult] fires repeatedly with growing partial text;
+  /// [onDone] fires when recognition stops (silence, final result, or error).
+  Future<void> listen({
+    required void Function(VoiceResult result) onResult,
+    void Function()? onDone,
+  });
 
   bool _listening = false;
   Timer? _timer;

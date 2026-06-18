@@ -1,8 +1,12 @@
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/get.dart';
+import '../../../core/models/meeting.dart';
+import '../../../core/repository/meeting_repository.dart';
+import '../../../core/services/reminders/reminder_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/utils/responsive.dart';
 import '../../capture/view/capture_view.dart';
 import '../../home/view/home_page.dart';
@@ -21,7 +25,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   int _index = 0;
 
   static const List<Widget> _pages = <Widget>[
@@ -31,6 +35,35 @@ class _AppShellState extends State<AppShell> {
     PendingPage(key: ValueKey<String>('pending')),
     ProfilePage(key: ValueKey<String>('profile')),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkReminders();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkReminders();
+  }
+
+  /// On open/resume, prompt for any meeting that just ended (F3, client-side).
+  Future<void> _checkReminders() async {
+    try {
+      final List<Meeting> awaiting =
+          await app<MeetingRepository>().awaitingCapture();
+      await app<ReminderService>().remindEndedMeetings(awaiting);
+    } catch (_) {
+      // Non-fatal.
+    }
+  }
 
   void _select(int value) {
     if (value != _index) setState(() => _index = value);
@@ -152,8 +185,7 @@ class _MobileShell extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
+        ],
       ),
     );
   }

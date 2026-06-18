@@ -6,6 +6,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../shared/widgets/mono_label.dart';
 import '../../../shared/widgets/rex_logo.dart';
 import '../bloc/auth_bloc.dart';
 
@@ -46,10 +47,14 @@ class _LoginContent extends StatelessWidget {
             ),
         if (!wide) const Spacer(),
         SizedBox(height: wide ? 28 : 0),
+        const MonoLabel('FocusChain Labs · Sales companion')
+            .animate()
+            .fadeIn(delay: 80.ms),
+        AppSpacing.vGapMd,
         Text(
           AppStrings.welcomeTitle,
           style: Theme.of(context).textTheme.displaySmall?.copyWith(height: 1.02),
-        ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.1),
+        ).animate().fadeIn(delay: 120.ms).slideX(begin: -0.1),
         AppSpacing.vGapLg,
         Text(
           AppStrings.welcomeBody,
@@ -57,11 +62,58 @@ class _LoginContent extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
         ).animate().fadeIn(delay: 200.ms),
+        AppSpacing.vGapXl,
+        const _FeatureStrip().animate().fadeIn(delay: 260.ms).slideY(begin: 0.15),
         if (!wide) const Spacer(),
-        SizedBox(height: wide ? 32 : 0),
-        _IsolationNote().animate().fadeIn(delay: 300.ms).slideY(begin: 0.2),
+        SizedBox(height: wide ? 28 : 0),
+        _IsolationNote().animate().fadeIn(delay: 320.ms).slideY(begin: 0.2),
         AppSpacing.vGapXl,
         const _SignInButtons().animate().fadeIn(delay: 380.ms),
+      ],
+    );
+  }
+}
+
+/// Three compact value props with the brand's mono/emerald styling.
+class _FeatureStrip extends StatelessWidget {
+  const _FeatureStrip();
+
+  static const List<(IconData, String)> _items = <(IconData, String)>[
+    (Icons.bolt_rounded, 'Client context in seconds'),
+    (Icons.mic_rounded, 'Update the CRM by voice'),
+    (Icons.event_available_rounded, 'Follow-ups that never slip'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        for (final (IconData icon, String label) in _items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppColors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  child: Icon(icon, size: 18, color: AppColors.green),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

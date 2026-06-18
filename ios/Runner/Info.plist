@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Mr. Rex uses the microphone so you can speak your CRM updates instead of typing.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Mr. Rex transcribes your speech on-device to capture client updates hands-free.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -69,6 +73,18 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- Google Sign-In redirect (reversed client ID from GoogleService-Info.plist). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.749976057554-2t3ocjjml2mlgu22enghcqvia35uhmp5</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

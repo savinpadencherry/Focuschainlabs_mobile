@@ -56,7 +56,8 @@ class CrmInteraction extends Equatable {
             ) ??
             DateTime.now(),
         author: (json['author'] ?? json['from'] ?? '').toString(),
-        kind: json['subject'] != null ? 'email' : 'comment',
+        kind: json['kind']?.toString() ??
+            (json['subject'] != null ? 'email' : 'comment'),
       );
 
   @override
