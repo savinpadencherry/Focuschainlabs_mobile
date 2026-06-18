@@ -1,5 +1,7 @@
 import '../../constants/app_constants.dart';
+import '../../data/seed_data.dart';
 import '../../models/crm.dart';
+import '../../models/enums.dart';
 import '../../models/extraction.dart';
 import 'leads_crm_service.dart';
 
@@ -21,6 +23,22 @@ class MockLeadsCrmService implements LeadsCrmService {
       contactName: extraction.client,
       action: 'merged',
     );
+  }
+
+  @override
+  Future<List<CrmContact>> listLeads() async {
+    await Future<void>.delayed(AppConstants.mockLatency);
+    return SeedData.clients()
+        .map((c) => CrmContact(
+              id: c.id,
+              name: c.name,
+              company: c.name,
+              status: c.primaryDeal?.stage.label ?? 'New',
+              dealStatus: 'open',
+              value: c.primaryDeal?.value ?? '',
+              owner: c.owner,
+            ))
+        .toList();
   }
 
   @override

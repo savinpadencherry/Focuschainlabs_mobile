@@ -1,47 +1,62 @@
-/// Runtime configuration sourced from `--dart-define` values, so secrets and
-/// endpoints stay out of source control. Anything left blank falls back to the
-/// offline mock implementations, so the app still runs with zero setup.
-///
-/// Example run:
-/// ```
-/// flutter run \
-///   --dart-define=GEMINI_API_KEY=xxx \
-///   --dart-define=CRM_API_BASE_URL=https://fcl-crm-api.onrender.com \
-///   --dart-define=CRM_API_TOKEN=yyy \
-///   --dart-define=CRM_WEB_URL=https://fcl-leads.streamlit.app \
-///   --dart-define=TRELLO_KEY=aaa --dart-define=TRELLO_TOKEN=bbb \
-///   --dart-define=TRELLO_LIST_ID=66xx --dart-define=TRELLO_BOARD_URL=https://trello.com/b/xxxx
-/// ```
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+/// Runtime configuration. Values are read from the bundled `.env` first (filled
+/// in before a build), falling back to `--dart-define` for CI/advanced use, and
+/// finally a default. Anything left blank falls back to the offline mocks, so
+/// the app still runs with zero setup.
 abstract final class AppConfig {
-  // --- AI (Gemini direct, per decision) ---
-  static const String geminiApiKey =
-      String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
-  static const String geminiModel =
-      String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-2.5-flash');
+  static String _read(String key, String fromDefine, {String fallback = ''}) {
+    final String env = (dotenv.isInitialized ? dotenv.env[key] : null)?.trim() ?? '';
+    if (env.isNotEmpty) return env;
+    if (fromDefine.isNotEmpty) return fromDefine;
+    return fallback;
+  }
 
-  // --- Leads Agent CRM API (FastAPI on Render) ---
-  static const String crmApiBaseUrl =
-      String.fromEnvironment('CRM_API_BASE_URL', defaultValue: '');
-  static const String crmApiToken =
-      String.fromEnvironment('CRM_API_TOKEN', defaultValue: '');
+  // --- AI: Gemini ---
+  static String get geminiApiKey =>
+      _read('GEMINI_API_KEY', const String.fromEnvironment('GEMINI_API_KEY'));
+  static String get geminiModel => _read(
+        'GEMINI_MODEL',
+        const String.fromEnvironment('GEMINI_MODEL'),
+        fallback: 'gemini-2.5-flash',
+      );
 
-  /// The Streamlit CRM URL opened in the in-app webview (desktop view).
-  static const String crmWebUrl =
-      String.fromEnvironment('CRM_WEB_URL', defaultValue: '');
+  // --- CRM stored in the Leads Agent GitHub repo ---
+  static String get githubToken =>
+      _read('GITHUB_TOKEN', const String.fromEnvironment('GITHUB_TOKEN'));
+  static String get githubCrmRepo => _read(
+        'GITHUB_CRM_REPO',
+        const String.fromEnvironment('GITHUB_CRM_REPO'),
+        fallback: 'savinpadencherry/Focuschainlabs_Leads_Agent',
+      );
+  static String get githubCrmPath => _read(
+        'GITHUB_CRM_PATH',
+        const String.fromEnvironment('GITHUB_CRM_PATH'),
+        fallback: 'data/crm/contacts.json',
+      );
+  static String get githubCrmBranch => _read(
+        'GITHUB_CRM_BRANCH',
+        const String.fromEnvironment('GITHUB_CRM_BRANCH'),
+        fallback: 'main',
+      );
 
-  // --- Trello (direct from app, per decision) ---
-  static const String trelloKey =
-      String.fromEnvironment('TRELLO_KEY', defaultValue: '');
-  static const String trelloToken =
-      String.fromEnvironment('TRELLO_TOKEN', defaultValue: '');
-  static const String trelloListId =
-      String.fromEnvironment('TRELLO_LIST_ID', defaultValue: '');
-  static const String trelloBoardUrl =
-      String.fromEnvironment('TRELLO_BOARD_URL', defaultValue: '');
+  /// Streamlit CRM URL opened in the in-app desktop webview.
+  static String get crmWebUrl =>
+      _read('CRM_WEB_URL', const String.fromEnvironment('CRM_WEB_URL'));
+
+  // --- Trello ---
+  static String get trelloKey =>
+      _read('TRELLO_KEY', const String.fromEnvironment('TRELLO_KEY'));
+  static String get trelloToken =>
+      _read('TRELLO_TOKEN', const String.fromEnvironment('TRELLO_TOKEN'));
+  static String get trelloListId =>
+      _read('TRELLO_LIST_ID', const String.fromEnvironment('TRELLO_LIST_ID'));
+  static String get trelloBoardUrl =>
+      _read('TRELLO_BOARD_URL', const String.fromEnvironment('TRELLO_BOARD_URL'));
 
   // --- Capability flags ---
   static bool get hasGemini => geminiApiKey.isNotEmpty;
-  static bool get hasCrmApi => crmApiBaseUrl.isNotEmpty;
+  static bool get hasGithubCrm => githubToken.isNotEmpty && githubCrmRepo.isNotEmpty;
   static bool get hasCrmWeb => crmWebUrl.isNotEmpty;
   static bool get hasTrello =>
       trelloKey.isNotEmpty && trelloToken.isNotEmpty && trelloListId.isNotEmpty;

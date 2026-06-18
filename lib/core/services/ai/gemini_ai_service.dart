@@ -111,6 +111,9 @@ class GeminiAiService implements AiService {
 You are Mr. Rex, a sales CRM assistant. Convert the rep's spoken note into a
 single structured CRM update. Follow these rules strictly:
 - Return ONLY JSON matching the provided schema.
+- Decide "destination": "trello" if the note is primarily an actionable
+  task/to-do/follow-up the rep must DO; "crm" if it is information about a lead
+  or client to RECORD (a comment, interaction, or stage change).
 - update_type is one of: comment, interaction, stage_change, follow_up.
 - sentiment is one of: positive, neutral, negative, at_risk.
 - Dates are ISO YYYY-MM-DD. Use null for anything not stated; never invent facts.
@@ -139,6 +142,10 @@ Question: "$query"''';
         'type': 'STRING',
         'enum': <String>['positive', 'neutral', 'negative', 'at_risk'],
       },
+      'destination': <String, dynamic>{
+        'type': 'STRING',
+        'enum': <String>['crm', 'trello'],
+      },
       'deal_stage_change': <String, dynamic>{'type': 'STRING', 'nullable': true},
       'next_steps': <String, dynamic>{
         'type': 'ARRAY',
@@ -159,6 +166,6 @@ Question: "$query"''';
       'follow_up_date': <String, dynamic>{'type': 'STRING', 'nullable': true},
       'notes': <String, dynamic>{'type': 'STRING', 'nullable': true},
     },
-    'required': <String>['client', 'update_type', 'summary', 'sentiment'],
+    'required': <String>['client', 'update_type', 'summary', 'sentiment', 'destination'],
   };
 }

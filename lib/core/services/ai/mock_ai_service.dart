@@ -24,12 +24,16 @@ class MockAiService implements AiService {
     final DateTime? followUp = _resolveFollowUp(lower);
     final List<ActionItem> actions = _resolveActionItems(text, followUp);
     final String? stageChange = _resolveStage(lower);
+    final bool taskish = type == UpdateType.followUp ||
+        _containsAny(lower, <String>['todo', 'to-do', 'task', 'remind', 'schedule', 'book ']);
+    final String destination = taskish ? 'trello' : 'crm';
 
     return Extraction(
       client: client,
       updateType: type,
       summary: _summarise(text),
       sentiment: sentiment,
+      destination: destination,
       dealStageChange: stageChange,
       nextSteps: actions.map((ActionItem a) => a.title).toList(),
       actionItems: actions,

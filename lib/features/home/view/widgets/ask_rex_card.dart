@@ -1,75 +1,75 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/hero_panel.dart';
+import '../../../../shared/widgets/mono_label.dart';
 import '../../../lookup/view/lookup_page.dart';
 
-/// The headline lookup entry point (F1). A bold gradient panel that opens the
-/// conversational lookup.
+/// The headline lookup entry point (F1), rendered as the website's dark hero
+/// panel with an emerald glow, mono eyebrow and a pill CTA.
 class AskRexCard extends StatelessWidget {
   const AskRexCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return HeroPanel(
       onTap: () => LookupPage.open(context),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: AppColors.heroGradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const MonoLabel('Ask Rex · grounded in your data', onDark: true),
+          const SizedBox(height: 18),
+          Text(
+            'Every client fact,\nin seconds.',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: Colors.white,
+                  height: 1.05,
+                ),
           ),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.32),
-              blurRadius: 30,
-              offset: const Offset(0, 14),
+          AppSpacing.vGapSm,
+          Text(
+            'Clients, deals, follow-ups and product knowledge — by voice or tap.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              height: 1.5,
+              fontSize: 14.5,
             ),
+          ),
+          AppSpacing.vGapLg,
+          _StartPill(onTap: () => LookupPage.open(context)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StartPill extends StatelessWidget {
+  const _StartPill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: AppColors.brandGradient),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(color: AppColors.greenGlow, blurRadius: 18, offset: Offset(0, 6)),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-              ),
-              child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
-            ),
-            const SizedBox(height: 26),
-            const Text(
-              AppStrings.askRexTitle,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 27,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            AppSpacing.vGapSm,
+            Icon(Icons.search_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 8),
             Text(
-              AppStrings.askRexBody,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
-                height: 1.45,
-                fontSize: 15,
-              ),
-            ),
-            AppSpacing.vGapLg,
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.primary,
-              ),
-              onPressed: () => LookupPage.open(context),
-              icon: const Icon(Icons.search_rounded),
-              label: const Text(AppStrings.startLookup),
+              'Start a lookup',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
             ),
           ],
         ),

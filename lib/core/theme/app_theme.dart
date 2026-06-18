@@ -12,7 +12,8 @@ abstract final class AppTheme {
       brightness: Brightness.light,
     ).copyWith(
       surface: AppColors.surface,
-      secondary: AppColors.accent,
+      secondary: AppColors.navy,
+      onSurface: AppColors.ink,
     );
 
     final ThemeData base = ThemeData(
@@ -127,6 +128,11 @@ abstract final class AppTheme {
           ),
         ),
       ),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: AppColors.green,
+        selectionColor: Color(0x331FA565),
+        selectionHandleColor: AppColors.green,
+      ),
       chipTheme: base.chipTheme.copyWith(
         side: BorderSide.none,
         backgroundColor: AppColors.surfaceMuted,
@@ -136,7 +142,7 @@ abstract final class AppTheme {
           color: AppColors.textPrimary,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -146,7 +152,7 @@ abstract final class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryDeep,
+        backgroundColor: AppColors.navyDeep,
         contentTextStyle: const TextStyle(color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),

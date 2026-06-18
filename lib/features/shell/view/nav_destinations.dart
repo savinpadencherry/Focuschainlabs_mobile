@@ -21,6 +21,11 @@ const List<NavItem> navDestinations = <NavItem>[
     selectedIcon: Icons.home_rounded,
   ),
   NavItem(
+    label: 'Leads',
+    icon: Icons.people_outline_rounded,
+    selectedIcon: Icons.people_rounded,
+  ),
+  NavItem(
     label: 'Meetings',
     icon: Icons.calendar_month_outlined,
     selectedIcon: Icons.calendar_month_rounded,

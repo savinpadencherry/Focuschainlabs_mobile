@@ -94,7 +94,9 @@ class CaptureRepository {
   }) async {
     await _ensureLoaded();
 
-    final bool isTask = extraction.updateType == UpdateType.followUp;
+    // The AI router decides CRM vs Trello (a bare follow-up also counts as task).
+    final bool isTask =
+        extraction.routesToTrello || extraction.updateType == UpdateType.followUp;
 
     // 1) CRM — always log the spoken update against the contact.
     final CrmWriteResult crm =

@@ -9,7 +9,7 @@ import 'repository/meeting_repository.dart';
 import 'services/ai/ai_service.dart';
 import 'services/ai/gemini_ai_service.dart';
 import 'services/ai/mock_ai_service.dart';
-import 'services/crm/http_leads_crm_service.dart';
+import 'services/crm/github_crm_service.dart';
 import 'services/crm/leads_crm_service.dart';
 import 'services/crm/mock_leads_crm_service.dart';
 import 'services/local_store.dart';
@@ -39,9 +39,10 @@ void initializeGetIt() {
     () => AppConfig.hasGemini ? GeminiAiService() : const MockAiService(),
   );
 
-  // CRM — Leads Agent FastAPI when configured, else mock.
+  // CRM — read/write the Leads Agent repo's contacts.json when a GitHub token
+  // is configured, else mock.
   app.registerLazySingleton<LeadsCrmService>(
-    () => AppConfig.hasCrmApi ? HttpLeadsCrmService() : const MockLeadsCrmService(),
+    () => AppConfig.hasGithubCrm ? GithubCrmService() : const MockLeadsCrmService(),
   );
 
   // Tasks — Trello REST when configured, else mock.
