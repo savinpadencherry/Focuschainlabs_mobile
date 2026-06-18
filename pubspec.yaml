@@ -25,6 +25,7 @@ dependencies:
   webview_flutter: ^4.10.0     # embedded CRM (desktop view) + Trello board (mobile)
   url_launcher: ^6.3.1         # open CRM/Trello externally (web/desktop fallback)
   flutter_dotenv: ^5.1.0       # load keys from .env at startup
+  speech_to_text: ^7.0.0       # on-device STT for Android/iOS
 
 dev_dependencies:
   flutter_test:

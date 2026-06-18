@@ -5,7 +5,6 @@ import '../../../core/get.dart';
 import '../../../core/models/capture.dart';
 import '../../../core/repository/capture_repository.dart';
 import '../../../core/services/navigator_service.dart';
-import '../../../core/services/voice/voice_service.dart';
 import '../../../core/utils/responsive.dart';
 import '../bloc/capture_flow_bloc.dart';
 import 'widgets/processing_panel.dart';
@@ -27,7 +26,6 @@ class CaptureView extends StatelessWidget {
         BlocProvider<CaptureFlowBloc>(
           create: (_) => CaptureFlowBloc(
             captureRepository: app<CaptureRepository>(),
-            voiceService: app<VoiceService>(),
             source: source,
           ),
           child: const CaptureView(),
@@ -83,7 +81,6 @@ class CaptureView extends StatelessWidget {
   CaptureFlowStatus _panelKey(CaptureFlowStatus status) {
     switch (status) {
       case CaptureFlowStatus.idle:
-      case CaptureFlowStatus.recording:
       case CaptureFlowStatus.error:
         return CaptureFlowStatus.idle;
       case CaptureFlowStatus.transcribing:
@@ -110,7 +107,6 @@ class CaptureView extends StatelessWidget {
       case CaptureFlowStatus.writing:
         return ProcessingPanel(status: state.status);
       case CaptureFlowStatus.idle:
-      case CaptureFlowStatus.recording:
       case CaptureFlowStatus.error:
         return RecordingPanel(state: state);
     }

@@ -15,6 +15,7 @@ class MockLeadsCrmService implements LeadsCrmService {
   Future<CrmWriteResult> upsertLead(
     Extraction extraction, {
     String? transcript,
+    String? captureId,
   }) async {
     await Future<void>.delayed(AppConstants.mockLatency);
     return CrmWriteResult(

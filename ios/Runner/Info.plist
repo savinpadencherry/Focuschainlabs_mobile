@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Mr. Rex needs microphone access so you can capture spoken sales notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Mr. Rex uses speech recognition to transcribe your spoken notes into text.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

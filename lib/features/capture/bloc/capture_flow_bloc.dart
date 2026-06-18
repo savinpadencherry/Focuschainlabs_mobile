@@ -5,24 +5,20 @@ import '../../../core/models/activity.dart';
 import '../../../core/models/capture.dart';
 import '../../../core/models/extraction.dart';
 import '../../../core/repository/capture_repository.dart';
-import '../../../core/services/voice/voice_service.dart';
 
 part 'capture_flow_event.dart';
 part 'capture_flow_state.dart';
 
 /// Orchestrates a single capture session end-to-end (spec §6.1 / §6.2):
-/// record → transcribe → extract → review/edit → confirm/write → undo. Shared
-/// by the conversational path (F2) and post-meeting capture (F3/F4).
+/// compose → extract → review/edit → confirm/write → undo. Voice capture is
+/// handled in [RecordingPanel]; this bloc receives the final transcript via
+/// [CaptureManualSubmitted].
 class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
   CaptureFlowBloc({
     required CaptureRepository captureRepository,
-    required VoiceService voiceService,
     Capture? source,
   })  : _captures = captureRepository,
-        _voice = voiceService,
         super(CaptureFlowState(source: source)) {
-    on<CaptureRecordingStarted>(_onRecordingStarted);
-    on<CaptureRecordingStopped>(_onRecordingStopped);
     on<CaptureManualSubmitted>(_onManualSubmitted);
     on<CaptureExtractionChanged>(_onExtractionChanged);
     on<CaptureActionItemToggled>(_onActionItemToggled);
@@ -32,29 +28,12 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
   }
 
   final CaptureRepository _captures;
-  final VoiceService _voice;
-
-  void _onRecordingStarted(
-    CaptureRecordingStarted event,
-    Emitter<CaptureFlowState> emit,
-  ) {
-    emit(state.copyWith(status: CaptureFlowStatus.recording, message: null));
-  }
-
-  Future<void> _onRecordingStopped(
-    CaptureRecordingStopped event,
-    Emitter<CaptureFlowState> emit,
-  ) async {
-    emit(state.copyWith(status: CaptureFlowStatus.transcribing));
-    final String transcript = await _voice.transcribe();
-    await _processTranscript(transcript, emit);
-  }
 
   Future<void> _onManualSubmitted(
     CaptureManualSubmitted event,
     Emitter<CaptureFlowState> emit,
   ) async {
-    if (event.transcript.trim().isEmpty) return;
+    if (event.transcript.trim().isEmpty || state.isBusy) return;
     await _processTranscript(event.transcript, emit);
   }
 
@@ -66,6 +45,7 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
     emit(state.copyWith(
       status: CaptureFlowStatus.extracting,
       transcript: transcript,
+      message: null,
     ));
     try {
       final Extraction extraction = await _captures.draft(transcript);
@@ -108,7 +88,7 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
     Emitter<CaptureFlowState> emit,
   ) async {
     final Extraction? extraction = state.extraction;
-    if (extraction == null || !extraction.isValid) return;
+    if (extraction == null || !extraction.isValid || state.isBusy) return;
     emit(state.copyWith(status: CaptureFlowStatus.writing));
 
     final Capture capture = state.source ??
@@ -120,15 +100,24 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
           transcript: state.transcript,
         );
 
-    final ActivityEntry entry = await _captures.confirm(
-      capture: capture,
-      extraction: extraction,
-    );
-    emit(state.copyWith(
-      status: CaptureFlowStatus.written,
-      writtenCapture: capture,
-      activityEntry: entry,
-    ));
+    try {
+      final ActivityEntry entry = await _captures.confirm(
+        capture: capture,
+        extraction: extraction,
+      );
+      emit(state.copyWith(
+        status: CaptureFlowStatus.written,
+        writtenCapture: capture,
+        activityEntry: entry,
+      ));
+    } catch (error) {
+      emit(state.copyWith(
+        status: CaptureFlowStatus.review,
+        message: error is FormatException
+            ? error.message
+            : 'Write failed — please try again.',
+      ));
+    }
   }
 
   Future<void> _onUndoRequested(
