@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 import 'config/app_config.dart';
@@ -37,6 +38,17 @@ import 'services/voice/voice_service.dart';
 /// this file.
 final GetIt app = GetIt.instance;
 
+VoiceService _createVoiceService() {
+  if (kIsWeb) return MockVoiceService();
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+      return DeviceVoiceService();
+    default:
+      return MockVoiceService();
+  }
+}
+
 void initializeGetIt() {
   if (app.isRegistered<NavigatorService>()) return;
   final bool firebase = FirebaseBootstrap.ready;
@@ -45,27 +57,15 @@ void initializeGetIt() {
   app
     ..registerLazySingleton<NavigatorService>(NavigatorService.new)
     ..registerLazySingleton<LocalStore>(LocalStore.new)
-    ..registerLazySingleton<VoiceService>(DeviceVoiceService.new)
-    ..registerLazySingleton<GoogleAuthService>(GoogleAuthService.new)
-    ..registerLazySingleton<ReminderService>(ReminderService.new)
-    ..registerLazySingleton<AnalyticsService>(
-      () => firebase ? FirebaseAnalyticsService() : const NoopAnalyticsService(),
-    );
+    ..registerLazySingleton<VoiceService>(_createVoiceService);
 
   // AI — Gemini when a key is present, else mock.
   app.registerLazySingleton<AiService>(
     () => AppConfig.hasGemini ? GeminiAiService() : const MockAiService(),
   );
 
-  // Calendar — Google Calendar when signed in via Firebase, else mock.
-  app.registerLazySingleton<CalendarService>(
-    () => firebase
-        ? GoogleCalendarService(auth: app<GoogleAuthService>())
-        : const MockCalendarService(),
-  );
-
-  // CRM — Supabase when configured (the shared database), else the GitHub repo,
-  // else mock.
+  // CRM — read/write the Leads Agent repo's contacts.json when a GitHub token
+  // is configured, else mock. DEMO DIRECT MODE — see AppConfig.
   app.registerLazySingleton<LeadsCrmService>(
     () => SupabaseBootstrap.ready
         ? SupabaseCrmService()

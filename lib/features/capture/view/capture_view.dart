@@ -81,7 +81,6 @@ class CaptureView extends StatelessWidget {
   CaptureFlowStatus _panelKey(CaptureFlowStatus status) {
     switch (status) {
       case CaptureFlowStatus.idle:
-      case CaptureFlowStatus.recording:
       case CaptureFlowStatus.error:
         return CaptureFlowStatus.idle;
       case CaptureFlowStatus.transcribing:
@@ -108,7 +107,6 @@ class CaptureView extends StatelessWidget {
       case CaptureFlowStatus.writing:
         return ProcessingPanel(status: state.status);
       case CaptureFlowStatus.idle:
-      case CaptureFlowStatus.recording:
       case CaptureFlowStatus.error:
         return RecordingPanel(state: state);
     }

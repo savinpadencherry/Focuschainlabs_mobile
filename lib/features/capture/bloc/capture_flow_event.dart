@@ -7,7 +7,7 @@ sealed class CaptureFlowEvent extends Equatable {
   List<Object?> get props => const <Object?>[];
 }
 
-/// The composed note (typed or transcribed) submitted to Rex for extraction.
+/// Typed or voice-composed note submitted for extraction.
 final class CaptureManualSubmitted extends CaptureFlowEvent {
   const CaptureManualSubmitted(this.transcript);
 

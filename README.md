@@ -24,13 +24,32 @@ follow-ups that never slip.
 flutter pub get
 flutter run                         # mobile
 flutter run -d chrome               # web
+flutter run -d web-server --web-hostname 0.0.0.0 --web-port 3000  # Codespaces
 ```
 
 ```bash
 flutter analyze && flutter test     # quality gate
-flutter build apk --debug           # Android
+flutter build apk --debug           # Android → build/app/outputs/flutter-apk/app-debug.apk
 flutter build web --release         # Web → build/web
 ```
+
+## Internal UAT (demo-direct mode)
+
+By default `DEMO_DIRECT_INTEGRATIONS=true` bundles a `.env` asset so Gemini,
+GitHub CRM, and Trello are called **directly from the client**. This is fine
+for private tester builds only — credentials can be extracted from the APK or
+web bundle. For UAT:
+
+1. Copy `.env.example` → `.env` and fill keys (never commit real tokens).
+2. Use a **narrow, expiring** GitHub fine-grained PAT scoped to
+   `Focuschainlabs_Leads_Agent` with Contents read/write only.
+3. Run on device for real microphone (`DeviceVoiceService` on Android/iOS;
+   `MockVoiceService` on web).
+4. CI (`.github/workflows/ci.yml`) generates `.env` from repository secrets and
+   uploads web + debug APK artifacts on each push/PR.
+
+Production must move writes behind a backend proxy / Edge Function and set
+`DEMO_DIRECT_INTEGRATIONS=false`.
 
 ## Project layout
 

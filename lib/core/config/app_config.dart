@@ -4,6 +4,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// in before a build), falling back to `--dart-define` for CI/advanced use, and
 /// finally a default. Anything left blank falls back to the offline mocks, so
 /// the app still runs with zero setup.
+///
+/// **Security:** When [demoDirectIntegrations] is true (default), Gemini,
+/// GitHub, and Trello credentials are used directly from the client bundle.
+/// This is acceptable for private internal UAT only — never ship to production.
+/// Future backend mode should proxy these calls via Supabase Edge Functions or
+/// your own API so secrets never ship in the APK/web bundle.
 abstract final class AppConfig {
   static String _read(String key, String fromDefine, {String fallback = ''}) {
     final String env = (dotenv.isInitialized ? dotenv.env[key] : null)?.trim() ?? '';
@@ -60,13 +66,26 @@ abstract final class AppConfig {
   static String get trelloBoardUrl =>
       _read('TRELLO_BOARD_URL', const String.fromEnvironment('TRELLO_BOARD_URL'));
 
+  /// True when the app talks directly to Gemini/GitHub/Trello from the client.
+  /// Set `DEMO_DIRECT_INTEGRATIONS=false` (or `--dart-define`) to prepare for
+  /// a future backend-proxy mode.
+  static bool get demoDirectIntegrations {
+    final String raw = _read(
+      'DEMO_DIRECT_INTEGRATIONS',
+      const String.fromEnvironment('DEMO_DIRECT_INTEGRATIONS'),
+      fallback: 'true',
+    );
+    return raw.toLowerCase() != 'false';
+  }
+
   // --- Capability flags ---
-  static bool get hasGemini => geminiApiKey.isNotEmpty;
-  static bool get hasSupabase =>
-      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
-  static bool get hasGithubCrm => githubToken.isNotEmpty && githubCrmRepo.isNotEmpty;
+  static bool get hasGemini => demoDirectIntegrations && geminiApiKey.isNotEmpty;
+  static bool get hasGithubCrm =>
+      demoDirectIntegrations && githubToken.isNotEmpty && githubCrmRepo.isNotEmpty;
   static bool get hasCrmWeb => crmWebUrl.isNotEmpty;
-  static bool get hasTrello =>
-      trelloKey.isNotEmpty && trelloToken.isNotEmpty && trelloListId.isNotEmpty;
+  static bool get hasTrello => demoDirectIntegrations &&
+      trelloKey.isNotEmpty &&
+      trelloToken.isNotEmpty &&
+      trelloListId.isNotEmpty;
   static bool get hasTrelloBoard => trelloBoardUrl.isNotEmpty;
 }

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "555659919372",
+    "project_id": "focuschainlabs-72a67",
+    "storage_bucket": "focuschainlabs-72a67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:555659919372:android:787d4a43f0f6e50e9bae29",
+        "android_client_info": {
+          "package_name": "labs.focuschain.focuschainlabs_mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "555659919372-fc1gqotostq923657d25orc241tmosjh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBN0UOt_tzo7zlWJpEfLiuczQIBMzAn-a4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "555659919372-fc1gqotostq923657d25orc241tmosjh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "555659919372-5putv4u0et7ia2n93eh2avf1ci6q7dfn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "labs.focuschain.focuschainlabsMobile"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
