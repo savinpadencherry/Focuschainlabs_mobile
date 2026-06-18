@@ -19,14 +19,15 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
   curved_navigation_bar: ^1.0.6
-  # Local persistence (demo mode + cached session). Swappable for Supabase.
+  # Local persistence (demo mode + cached session).
   shared_preferences: ^2.3.2
   # Networking + integrations
-  http: ^1.2.2                 # Gemini, GitHub CRM, Trello REST
-  webview_flutter: ^4.10.0     # embedded CRM (desktop view) + Trello board (mobile)
-  url_launcher: ^6.3.1         # open CRM/Trello externally (web/desktop fallback)
-  flutter_dotenv: ^5.1.0       # load keys from .env at startup
-  speech_to_text: ^7.0.0       # on-device STT for Android/iOS
+  http: ^1.2.2
+  webview_flutter: ^4.10.0
+  url_launcher: ^6.3.1
+  flutter_dotenv: ^5.1.0
+  speech_to_text: ^7.0.0
+  supabase_flutter: ^2.8.4
 
 dev_dependencies:
   flutter_test:
