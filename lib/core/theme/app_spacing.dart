@@ -11,11 +11,12 @@ abstract final class AppSpacing {
   static const double xxl = 28;
   static const double xxxl = 40;
 
-  // Radii
-  static const double radiusSm = 14;
-  static const double radiusMd = 20;
-  static const double radiusLg = 26;
-  static const double radiusXl = 32;
+  // Radii (website scale: r=10, lg=18, pills=999)
+  static const double radiusSm = 10;
+  static const double radiusMd = 14;
+  static const double radiusLg = 18;
+  static const double radiusXl = 24;
+  static const double radiusPill = 999;
 
   // Common gaps as widgets (handy in Column/Row children lists).
   static const Widget gapXs = SizedBox(height: xs, width: xs);

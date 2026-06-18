@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../capture/view/capture_view.dart';
 import '../../home/view/home_page.dart';
+import '../../leads/view/leads_page.dart';
 import '../../meetings/view/meetings_page.dart';
 import '../../pending/view/pending_page.dart';
 import '../../profile/view/profile_page.dart';
@@ -25,6 +26,7 @@ class _AppShellState extends State<AppShell> {
 
   static const List<Widget> _pages = <Widget>[
     HomePage(key: ValueKey<String>('home')),
+    LeadsPage(key: ValueKey<String>('leads')),
     MeetingsPage(key: ValueKey<String>('meetings')),
     PendingPage(key: ValueKey<String>('pending')),
     ProfilePage(key: ValueKey<String>('profile')),

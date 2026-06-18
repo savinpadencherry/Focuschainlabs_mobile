@@ -52,6 +52,7 @@ class Extraction extends Equatable {
     required this.updateType,
     required this.summary,
     required this.sentiment,
+    this.destination = 'crm',
     this.dealStageChange,
     this.nextSteps = const <String>[],
     this.actionItems = const <ActionItem>[],
@@ -63,6 +64,10 @@ class Extraction extends Equatable {
   final UpdateType updateType;
   final String summary;
   final Sentiment sentiment;
+
+  /// Where the AI router decided this belongs: `crm` (record a lead/update) or
+  /// `trello` (a task to do). Drives the post-confirm fan-out and webview.
+  final String destination;
   final String? dealStageChange;
   final List<String> nextSteps;
   final List<ActionItem> actionItems;
@@ -72,11 +77,14 @@ class Extraction extends Equatable {
   /// Rejects malformed extractions before any write (F4 acceptance criteria).
   bool get isValid => client.trim().isNotEmpty && summary.trim().isNotEmpty;
 
+  bool get routesToTrello => destination == 'trello';
+
   Extraction copyWith({
     String? client,
     UpdateType? updateType,
     String? summary,
     Sentiment? sentiment,
+    String? destination,
     String? dealStageChange,
     List<String>? nextSteps,
     List<ActionItem>? actionItems,
@@ -88,6 +96,7 @@ class Extraction extends Equatable {
         updateType: updateType ?? this.updateType,
         summary: summary ?? this.summary,
         sentiment: sentiment ?? this.sentiment,
+        destination: destination ?? this.destination,
         dealStageChange: dealStageChange ?? this.dealStageChange,
         nextSteps: nextSteps ?? this.nextSteps,
         actionItems: actionItems ?? this.actionItems,
@@ -100,6 +109,7 @@ class Extraction extends Equatable {
         'update_type': updateType.wire,
         'summary': summary,
         'sentiment': sentiment.wire,
+        'destination': destination,
         'deal_stage_change': dealStageChange,
         'next_steps': nextSteps,
         'action_items': actionItems.map((ActionItem a) => a.toJson()).toList(),
@@ -112,6 +122,7 @@ class Extraction extends Equatable {
         updateType: UpdateTypeX.fromWire(json['update_type'] as String? ?? 'comment'),
         summary: json['summary'] as String? ?? '',
         sentiment: SentimentX.fromWire(json['sentiment'] as String? ?? 'neutral'),
+        destination: (json['destination'] as String?) == 'trello' ? 'trello' : 'crm',
         dealStageChange: json['deal_stage_change'] as String?,
         nextSteps: (json['next_steps'] as List<dynamic>? ?? <dynamic>[])
             .map((dynamic e) => e.toString())
@@ -130,6 +141,7 @@ class Extraction extends Equatable {
         updateType,
         summary,
         sentiment,
+        destination,
         dealStageChange,
         nextSteps,
         actionItems,
