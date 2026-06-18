@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Mr Rex — Demo Web",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "web-server",
+      "args": [
+        "--web-hostname",
+        "0.0.0.0",
+        "--web-port",
+        "3000"
+      ]
+    },
+    {
+      "name": "Mr Rex — Demo Android",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "android"
+    },
+    {
+      "name": "Mr Rex — Live integrations (dart-define)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "web-server",
+      "args": [
+        "--web-hostname",
+        "0.0.0.0",
+        "--web-port",
+        "3000",
+        "--dart-define=DEMO_DIRECT_INTEGRATIONS=true",
+        "--dart-define=GEMINI_API_KEY=REPLACE_ME",
+        "--dart-define=GITHUB_TOKEN=REPLACE_ME"
+      ]
+    },
+    {
+      "name": "Mr Rex — UAT build (profile)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "deviceId": "android"
+    }
+  ]
+}

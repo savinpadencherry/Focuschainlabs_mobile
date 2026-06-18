@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 import 'config/app_config.dart';
@@ -17,6 +18,7 @@ import 'services/navigator_service.dart';
 import 'services/tasks/http_trello_service.dart';
 import 'services/tasks/mock_trello_service.dart';
 import 'services/tasks/trello_service.dart';
+import 'services/voice/device_voice_service.dart';
 import 'services/voice/voice_service.dart';
 
 /// Global service locator. Implementations are chosen at startup from
@@ -25,6 +27,17 @@ import 'services/voice/voice_service.dart';
 /// live touches only this file.
 final GetIt app = GetIt.instance;
 
+VoiceService _createVoiceService() {
+  if (kIsWeb) return MockVoiceService();
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+      return DeviceVoiceService();
+    default:
+      return MockVoiceService();
+  }
+}
+
 void initializeGetIt() {
   if (app.isRegistered<NavigatorService>()) return;
 
@@ -32,7 +45,7 @@ void initializeGetIt() {
   app
     ..registerLazySingleton<NavigatorService>(NavigatorService.new)
     ..registerLazySingleton<LocalStore>(LocalStore.new)
-    ..registerLazySingleton<VoiceService>(MockVoiceService.new);
+    ..registerLazySingleton<VoiceService>(_createVoiceService);
 
   // AI — Gemini when a key is present, else mock.
   app.registerLazySingleton<AiService>(
@@ -40,7 +53,7 @@ void initializeGetIt() {
   );
 
   // CRM — read/write the Leads Agent repo's contacts.json when a GitHub token
-  // is configured, else mock.
+  // is configured, else mock. DEMO DIRECT MODE — see AppConfig.
   app.registerLazySingleton<LeadsCrmService>(
     () => AppConfig.hasGithubCrm ? GithubCrmService() : const MockLeadsCrmService(),
   );

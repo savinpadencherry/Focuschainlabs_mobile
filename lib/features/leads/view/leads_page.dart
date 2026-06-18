@@ -52,6 +52,13 @@ class _LeadsPageState extends State<LeadsPage> {
               if (snap.connectionState == ConnectionState.waiting) {
                 return const LoadingView(label: 'Pulling leads from the CRM…');
               }
+              if (snap.hasError) {
+                return EmptyState(
+                  icon: Icons.cloud_off_outlined,
+                  title: 'Could not load leads',
+                  message: snap.error.toString(),
+                );
+              }
               final List<CrmContact> leads = snap.data ?? <CrmContact>[];
               if (leads.isEmpty) {
                 return const EmptyState(
