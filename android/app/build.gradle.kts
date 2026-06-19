@@ -28,11 +28,21 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Committed UAT keystore → a STABLE SHA-1 across every machine/Codespace,
+        // so Google Sign-In keeps working. NOT a production upload key — generate
+        // a separate secret key before Play Store distribution.
+        create("uat") {
+            storeFile = file("fcl-uat.keystore")
+            storePassword = "focuschain"
+            keyAlias = "fcl-uat"
+            keyPassword = "focuschain"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("uat")
         }
     }
 }
