@@ -4,14 +4,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../models/enums.dart';
 import '../../models/user.dart';
 
-/// Google Sign-In + Firebase Authentication, plus the Calendar read-only scope
-/// so the same session can pull the user's meetings. Org/role are defaulted for
-/// now and will be resolved from Data Connect once the schema is deployed.
+/// Google Sign-In + Firebase Authentication. Login requests only the basic
+/// email/profile scopes so it never trips Google's unverified-app warning; the
+/// sensitive Calendar scope is requested separately via [connectCalendar] (e.g.
+/// from Profile). Org/role are defaulted until resolved from the backend.
 class GoogleAuthService {
   GoogleAuthService()
-      : _googleSignIn = GoogleSignIn(
-          scopes: <String>['email', calendarReadonlyScope],
-        );
+      : _googleSignIn = GoogleSignIn(scopes: <String>['email']);
 
   static const String calendarReadonlyScope =
       'https://www.googleapis.com/auth/calendar.events.readonly';
@@ -30,15 +29,23 @@ class GoogleAuthService {
   Future<AppUser> signIn() async {
     final GoogleSignInAccount? google = await _googleSignIn.signIn();
     if (google == null) {
-      throw const _SignInCancelled();
+      throw const SignInCancelled();
     }
     final GoogleSignInAuthentication auth = await google.authentication;
+    if (auth.idToken == null && auth.accessToken == null) {
+      throw Exception(
+        'Google did not return a token. Check that this app\'s SHA-1 is added '
+        'in Firebase and Google sign-in is enabled.',
+      );
+    }
     final OAuthCredential credential = GoogleAuthProvider.credential(
       idToken: auth.idToken,
       accessToken: auth.accessToken,
     );
     final UserCredential result = await _auth.signInWithCredential(credential);
-    return _toAppUser(result.user!);
+    final User? user = result.user;
+    if (user == null) throw Exception('Firebase returned no user.');
+    return _toAppUser(user);
   }
 
   Future<void> signOut() async {
@@ -46,15 +53,24 @@ class GoogleAuthService {
     await _auth.signOut();
   }
 
-  /// Whether the Calendar scope has been granted to the current session.
-  bool get hasCalendarScope {
-    final GoogleSignInAccount? a = _googleSignIn.currentUser;
-    return a != null;
-  }
+  bool _calendarConnected = false;
 
-  /// Request the Calendar scope if it wasn't granted at sign-in.
-  Future<bool> connectCalendar() =>
-      _googleSignIn.requestScopes(<String>[calendarReadonlyScope]);
+  /// Whether the Calendar scope has been granted this session.
+  bool get hasCalendarScope => _calendarConnected;
+
+  /// Request the sensitive Calendar scope on demand (separate from login).
+  Future<bool> connectCalendar() async {
+    try {
+      if (_googleSignIn.currentUser == null) {
+        await _googleSignIn.signInSilently();
+      }
+      _calendarConnected =
+          await _googleSignIn.requestScopes(<String>[calendarReadonlyScope]);
+      return _calendarConnected;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Authenticated headers for direct Google Calendar REST calls. Refreshes the
   /// token silently when needed.
@@ -76,8 +92,9 @@ class GoogleAuthService {
       );
 }
 
-class _SignInCancelled implements Exception {
-  const _SignInCancelled();
+/// Thrown when the user dismisses the Google account picker — not a real error.
+class SignInCancelled implements Exception {
+  const SignInCancelled();
   @override
   String toString() => 'Sign-in was cancelled.';
 }
