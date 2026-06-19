@@ -53,6 +53,9 @@ class Extraction extends Equatable {
     required this.summary,
     required this.sentiment,
     this.destination = 'crm',
+    this.trelloAction = 'create',
+    this.trelloTargetCard,
+    this.trelloTargetList,
     this.dealStageChange,
     this.nextSteps = const <String>[],
     this.actionItems = const <ActionItem>[],
@@ -68,6 +71,15 @@ class Extraction extends Equatable {
   /// Where the AI router decided this belongs: `crm` (record a lead/update) or
   /// `trello` (a task to do). Drives the post-confirm fan-out and webview.
   final String destination;
+
+  /// When [destination] is `trello`, the action to perform:
+  /// create | move | update | complete | delete.
+  final String trelloAction;
+
+  /// Existing card to act on (for move/update/complete/delete) and the target
+  /// list name (for move) — both resolved by name on the board.
+  final String? trelloTargetCard;
+  final String? trelloTargetList;
   final String? dealStageChange;
   final List<String> nextSteps;
   final List<ActionItem> actionItems;
@@ -85,6 +97,9 @@ class Extraction extends Equatable {
     String? summary,
     Sentiment? sentiment,
     String? destination,
+    String? trelloAction,
+    String? trelloTargetCard,
+    String? trelloTargetList,
     String? dealStageChange,
     List<String>? nextSteps,
     List<ActionItem>? actionItems,
@@ -97,6 +112,9 @@ class Extraction extends Equatable {
         summary: summary ?? this.summary,
         sentiment: sentiment ?? this.sentiment,
         destination: destination ?? this.destination,
+        trelloAction: trelloAction ?? this.trelloAction,
+        trelloTargetCard: trelloTargetCard ?? this.trelloTargetCard,
+        trelloTargetList: trelloTargetList ?? this.trelloTargetList,
         dealStageChange: dealStageChange ?? this.dealStageChange,
         nextSteps: nextSteps ?? this.nextSteps,
         actionItems: actionItems ?? this.actionItems,
@@ -110,6 +128,9 @@ class Extraction extends Equatable {
         'summary': summary,
         'sentiment': sentiment.wire,
         'destination': destination,
+        'trello_action': trelloAction,
+        'trello_target_card': trelloTargetCard,
+        'trello_target_list': trelloTargetList,
         'deal_stage_change': dealStageChange,
         'next_steps': nextSteps,
         'action_items': actionItems.map((ActionItem a) => a.toJson()).toList(),
@@ -123,6 +144,9 @@ class Extraction extends Equatable {
         summary: json['summary'] as String? ?? '',
         sentiment: SentimentX.fromWire(json['sentiment'] as String? ?? 'neutral'),
         destination: (json['destination'] as String?) == 'trello' ? 'trello' : 'crm',
+        trelloAction: _trelloAction(json['trello_action'] as String?),
+        trelloTargetCard: json['trello_target_card'] as String?,
+        trelloTargetList: json['trello_target_list'] as String?,
         dealStageChange: json['deal_stage_change'] as String?,
         nextSteps: (json['next_steps'] as List<dynamic>? ?? <dynamic>[])
             .map((dynamic e) => e.toString())
@@ -142,6 +166,9 @@ class Extraction extends Equatable {
         summary,
         sentiment,
         destination,
+        trelloAction,
+        trelloTargetCard,
+        trelloTargetList,
         dealStageChange,
         nextSteps,
         actionItems,
@@ -155,3 +182,10 @@ DateTime? _parseDate(dynamic value) {
   if (value is DateTime) return value;
   return DateTime.tryParse(value.toString());
 }
+
+const Set<String> _trelloActions = <String>{
+  'create', 'move', 'update', 'complete', 'delete',
+};
+
+String _trelloAction(String? value) =>
+    _trelloActions.contains(value) ? value! : 'create';

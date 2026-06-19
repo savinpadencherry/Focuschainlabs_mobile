@@ -25,8 +25,26 @@ class MockAiService implements AiService {
     final List<ActionItem> actions = _resolveActionItems(text, followUp);
     final String? stageChange = _resolveStage(lower);
     final bool taskish = type == UpdateType.followUp ||
-        _containsAny(lower, <String>['todo', 'to-do', 'task', 'remind', 'schedule', 'book ']);
+        _containsAny(lower, <String>['todo', 'to-do', 'task', 'remind', 'schedule', 'book ',
+          'move', 'mark done', 'complete', 'delete', 'remove']);
     final String destination = taskish ? 'trello' : 'crm';
+
+    String trelloAction = 'create';
+    String? targetCard;
+    if (destination == 'trello') {
+      if (_containsAny(lower, <String>['mark done', 'done', 'completed', 'finished', 'close'])) {
+        trelloAction = 'complete';
+      } else if (_containsAny(lower, <String>['delete', 'remove', 'cancel'])) {
+        trelloAction = 'delete';
+      } else if (_containsAny(lower, <String>['move', 'shift'])) {
+        trelloAction = 'move';
+      } else if (_containsAny(lower, <String>['update', 'change', 'edit', 'rename'])) {
+        trelloAction = 'update';
+      }
+      if (trelloAction != 'create') {
+        targetCard = client != 'Unknown client' ? client : _summarise(text);
+      }
+    }
 
     return Extraction(
       client: client,
@@ -34,6 +52,8 @@ class MockAiService implements AiService {
       summary: _summarise(text),
       sentiment: sentiment,
       destination: destination,
+      trelloAction: trelloAction,
+      trelloTargetCard: targetCard,
       dealStageChange: stageChange,
       nextSteps: actions.map((ActionItem a) => a.title).toList(),
       actionItems: actions,
