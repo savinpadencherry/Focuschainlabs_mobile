@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "555659919372-hv19hgvusp67fn1oetjl2i739uqgecgo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "labs.focuschain.focuschainlabs_mobile",
+            "certificate_hash": "665e8b4b2806c2d6df780b269010b7872f4392ea"
+          }
+        },
+        {
           "client_id": "555659919372-fc1gqotostq923657d25orc241tmosjh.apps.googleusercontent.com",
           "client_type": 3
         }
