@@ -3,91 +3,69 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import 'voice_service.dart';
 
-/// On-device speech recognition for Android and iOS via [speech_to_text].
+/// Real on-device speech-to-text via the `speech_to_text` plugin (Android, iOS,
+/// web/Chrome, macOS). Permission is requested on first [available] call; if
+/// the platform has no recogniser, [available] returns false and the UI falls
+/// back to typing.
 class DeviceVoiceService implements VoiceService {
-  DeviceVoiceService({SpeechToText? speech}) : _speech = speech ?? SpeechToText();
-
-  final SpeechToText _speech;
-  bool _listening = false;
-  bool _initialized = false;
-  void Function(String message)? _onError;
+  final SpeechToText _stt = SpeechToText();
+  bool _initialised = false;
+  bool _available = false;
+  void Function()? _onDone;
 
   @override
-  bool get isListening => _listening;
+  bool get isListening => _stt.isListening;
 
   @override
-  Future<bool> initialize() async {
-    if (_initialized) return _speech.isAvailable;
-    _initialized = await _speech.initialize(
-      onError: (dynamic error) {
-        if (_listening) {
-          _onError?.call(error.errorMsg);
-        }
-      },
-      onStatus: (String status) {
-        if (status == 'done' || status == 'notListening') {
-          _listening = false;
-        }
-      },
-    );
-    return _initialized && _speech.isAvailable;
-  }
-
-  @override
-  Future<bool> isAvailable() async {
-    if (!_initialized) {
-      await initialize();
+  Future<bool> available() async {
+    if (_initialised) return _available;
+    _initialised = true;
+    try {
+      _available = await _stt.initialize(
+        onError: (_) => _finish(),
+        onStatus: (String status) {
+          if (status == 'done' || status == 'notListening') _finish();
+        },
+      );
+    } catch (_) {
+      _available = false;
     }
-    return _speech.isAvailable;
+    return _available;
   }
 
   @override
-  Future<void> startListening({
-    required void Function(String transcript, bool isFinal) onResult,
-    required void Function(String message) onError,
+  Future<void> listen({
+    required void Function(VoiceResult result) onResult,
+    void Function()? onDone,
   }) async {
-    if (_listening) return;
-    _onError = onError;
-
-    final bool ready = await initialize();
-    if (!ready) {
-      onError('Speech recognition is not available on this device.');
+    if (!await available()) {
+      onDone?.call();
       return;
     }
-    final bool permitted = await _speech.hasPermission;
-    if (!permitted) {
-      onError('Microphone permission denied. Enable it in Settings to use voice capture.');
-      return;
-    }
-
-    _listening = true;
-    await _speech.listen(
-      onResult: (SpeechRecognitionResult result) {
-        onResult(result.recognizedWords, result.finalResult);
-        if (result.finalResult) {
-          _listening = false;
-        }
+    _onDone = onDone;
+    await _stt.listen(
+      onResult: (SpeechRecognitionResult r) {
+        onResult(VoiceResult(r.recognizedWords, isFinal: r.finalResult));
       },
       listenOptions: SpeechListenOptions(
-        listenMode: ListenMode.confirmation,
         partialResults: true,
         cancelOnError: true,
+        listenMode: ListenMode.dictation,
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
       ),
     );
   }
 
   @override
-  Future<void> stopListening() async {
-    if (!_listening) return;
-    await _speech.stop();
-    _listening = false;
+  Future<void> stop() async {
+    if (_stt.isListening) await _stt.stop();
+    _finish();
   }
 
-  @override
-  Future<void> cancelListening() async {
-    if (_speech.isListening) {
-      await _speech.cancel();
-    }
-    _listening = false;
+  void _finish() {
+    final void Function()? cb = _onDone;
+    _onDone = null;
+    cb?.call();
   }
 }

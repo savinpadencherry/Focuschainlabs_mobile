@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Networking (Gemini, GitHub CRM, Trello, webview) and on-device speech. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="Mr. Rex"
         android:name="${applicationName}"

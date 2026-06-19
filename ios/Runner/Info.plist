@@ -28,10 +28,6 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Mr. Rex needs microphone access so you can capture spoken sales notes.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Mr. Rex uses speech recognition to transcribe your spoken notes into text.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -82,7 +78,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.749976057554-2t3ocjjml2mlgu22enghcqvia35uhmp5</string>
+				<string>com.googleusercontent.apps.555659919372-5putv4u0et7ia2n93eh2avf1ci6q7dfn</string>
 			</array>
 		</dict>
 	</array>

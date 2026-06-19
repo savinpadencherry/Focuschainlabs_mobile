@@ -2,26 +2,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_config.dart';
 
-/// Initialises the shared Supabase CRM when the project URL and publishable key
-/// are configured. The publishable key is passed through Supabase Flutter's
-/// `anonKey` parameter; authorization is enforced by Row Level Security.
+/// Initialises the Supabase client (CRM database) when `SUPABASE_URL` and
+/// `SUPABASE_ANON_KEY` are present. Degrades silently otherwise so the app
+/// keeps running on the mock/GitHub CRM.
 abstract final class SupabaseBootstrap {
   static bool ready = false;
-  static Object? lastError;
 
   static Future<void> init() async {
-    ready = false;
-    lastError = null;
     if (!AppConfig.hasSupabase) return;
-
     try {
       await Supabase.initialize(
         url: AppConfig.supabaseUrl,
-        anonKey: AppConfig.supabaseAnonKey,
+        publishableKey: AppConfig.supabaseAnonKey,
       );
       ready = true;
-    } catch (error) {
-      lastError = error;
+    } catch (_) {
       ready = false;
     }
   }

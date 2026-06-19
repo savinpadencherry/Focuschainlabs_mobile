@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
@@ -7,22 +6,17 @@ import '../../config/app_config.dart';
 import '../../models/crm.dart';
 import '../../models/enums.dart';
 import '../../models/extraction.dart';
-import 'crm_exceptions.dart';
 import 'leads_crm_service.dart';
 
 /// Reads and writes the Leads Agent CRM **directly in its GitHub repo**
 /// (`data/crm/contacts.json`) via the Contents API — no separate server. This
 /// is the same store the Streamlit CRM uses, so updates appear in both.
 ///
-/// **DEMO DIRECT MODE ONLY** — credentials ship in the app bundle for internal
-/// UAT. Production must route writes through a backend proxy / Edge Function.
-///
-/// Auth: a narrowly scoped PAT (`GITHUB_TOKEN`) with "Contents: read and write".
+/// Auth: a PAT (`GITHUB_TOKEN`) with "Contents: read and write".
 class GithubCrmService implements LeadsCrmService {
   GithubCrmService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
-  static const int _maxConflictRetries = 3;
 
   Uri get _contentsUri => Uri.parse(
         'https://api.github.com/repos/${AppConfig.githubCrmRepo}'
@@ -45,26 +39,17 @@ class GithubCrmService implements LeadsCrmService {
     final http.Response res =
         await _client.get(uri, headers: _headers).timeout(const Duration(seconds: 25));
     if (res.statusCode != 200) {
-      throw crmExceptionFromStatus(res.statusCode, res.body);
+      throw http.ClientException('GitHub CRM read ${res.statusCode}: ${res.body}');
     }
-    try {
-      final Map<String, dynamic> meta = jsonDecode(res.body) as Map<String, dynamic>;
-      final String sha = meta['sha'] as String;
-      final String encoded = (meta['content'] as String? ?? '').replaceAll('\n', '');
-      final String raw = utf8.decode(base64.decode(encoded));
-      final Map<String, dynamic> doc = raw.trim().isEmpty
-          ? <String, dynamic>{'version': 1, 'contacts': <dynamic>[]}
-          : jsonDecode(raw) as Map<String, dynamic>;
-      doc.putIfAbsent('version', () => 1);
-      doc.putIfAbsent('contacts', () => <dynamic>[]);
-      doc.putIfAbsent('custom_statuses', () => <dynamic>[]);
-      return (doc, sha);
-    } catch (_) {
-      throw const CrmServiceException(
-        CrmErrorCode.malformed,
-        'CRM file is not valid JSON.',
-      );
-    }
+    final Map<String, dynamic> meta = jsonDecode(res.body) as Map<String, dynamic>;
+    final String sha = meta['sha'] as String;
+    final String encoded = (meta['content'] as String? ?? '').replaceAll('\n', '');
+    final String raw = utf8.decode(base64.decode(encoded));
+    final Map<String, dynamic> doc = raw.trim().isEmpty
+        ? <String, dynamic>{'contacts': <dynamic>[]}
+        : jsonDecode(raw) as Map<String, dynamic>;
+    doc.putIfAbsent('contacts', () => <dynamic>[]);
+    return (doc, sha);
   }
 
   Future<void> _save(Map<String, dynamic> doc, String sha, String message) async {
@@ -82,30 +67,8 @@ class GithubCrmService implements LeadsCrmService {
           }),
         )
         .timeout(const Duration(seconds: 30));
-    if (res.statusCode == 409) {
-      throw crmExceptionFromStatus(res.statusCode, res.body);
-    }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw crmExceptionFromStatus(res.statusCode, res.body);
-    }
-  }
-
-  /// Applies a mutation with optimistic-lock retry on HTTP 409 SHA conflicts.
-  Future<void> _saveWithRetry(
-    void Function(Map<String, dynamic> doc) mutate,
-    String message,
-  ) async {
-    for (int attempt = 0; attempt < _maxConflictRetries; attempt++) {
-      final (Map<String, dynamic> doc, String sha) = await _load();
-      mutate(doc);
-      try {
-        await _save(doc, sha, message);
-        return;
-      } on CrmServiceException catch (e) {
-        if (e.code != CrmErrorCode.conflict || attempt == _maxConflictRetries - 1) {
-          rethrow;
-        }
-      }
+      throw http.ClientException('GitHub CRM write ${res.statusCode}: ${res.body}');
     }
   }
 
@@ -113,81 +76,68 @@ class GithubCrmService implements LeadsCrmService {
 
   @override
   Future<List<CrmContact>> listLeads() async {
-    final (Map<String, dynamic> doc, _) = await _load();
-    return _contacts(doc)
-        .map((Map<String, dynamic> c) => CrmContact.fromJson(c))
-        .toList();
+    try {
+      final (Map<String, dynamic> doc, _) = await _load();
+      return _contacts(doc)
+          .map((Map<String, dynamic> c) => CrmContact.fromJson(c))
+          .toList();
+    } catch (_) {
+      return <CrmContact>[];
+    }
   }
 
   @override
   Future<List<CrmInteraction>> history(String contactRef) async {
-    final (Map<String, dynamic> doc, _) = await _load();
-    final Map<String, dynamic>? contact = _find(doc, contactRef);
-    if (contact == null) {
-      throw CrmServiceException(
-        CrmErrorCode.notFound,
-        'Contact "$contactRef" not found in CRM.',
-      );
+    try {
+      final (Map<String, dynamic> doc, _) = await _load();
+      final Map<String, dynamic>? contact = _find(doc, contactRef);
+      if (contact == null) return <CrmInteraction>[];
+      return _interactions(contact);
+    } catch (_) {
+      return <CrmInteraction>[];
     }
-    return _interactions(contact);
   }
 
   @override
   Future<CrmWriteResult> upsertLead(
     Extraction extraction, {
     String? transcript,
-    String? captureId,
   }) async {
     try {
-      String action = 'merged';
-      String contactId = '';
-      String contactName = extraction.client;
+      final (Map<String, dynamic> doc, String sha) = await _load();
+      final (String action, Map<String, dynamic> contact) =
+          _findOrCreate(doc, extraction.client);
 
-      await _saveWithRetry((Map<String, dynamic> doc) {
-        final (String act, Map<String, dynamic> contact) =
-            _findOrCreate(doc, extraction.client);
-        action = act;
-        contactId = contact['id']?.toString() ?? '';
-        contactName = contact['name']?.toString() ?? extraction.client;
+      if (extraction.dealStageChange != null) {
+        contact['status'] = extraction.dealStageChange;
+      }
+      if (extraction.followUpDate != null) {
+        contact['next_follow_up'] =
+            extraction.followUpDate!.toIso8601String().split('T').first;
+      }
+      contact['sentiment'] = extraction.sentiment.wire;
+      contact['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
-        if (extraction.dealStageChange != null) {
-          contact['status'] = extraction.dealStageChange;
-        }
-        if (extraction.followUpDate != null) {
-          contact['next_follow_up'] =
-              extraction.followUpDate!.toIso8601String().split('T').first;
-        }
-        contact['sentiment'] = extraction.sentiment.wire;
-        contact['updated_at'] = DateTime.now().toUtc().toIso8601String();
+      final List<dynamic> comments =
+          contact.putIfAbsent('comments', () => <dynamic>[]) as List<dynamic>;
+      comments.add(<String, dynamic>{
+        'id': DateTime.now().microsecondsSinceEpoch.toRadixString(16),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+        'author': 'Mr. Rex (mobile)',
+        'body': (transcript == null || transcript.isEmpty)
+            ? extraction.summary
+            : '${extraction.summary}\n\n“$transcript”',
+        'meeting_link': '',
+      });
 
-        final List<dynamic> comments =
-            contact.putIfAbsent('comments', () => <dynamic>[]) as List<dynamic>;
-        final String commentId = captureId ?? _newUuid();
-        if (_hasComment(comments, commentId)) return;
-
-        comments.add(<String, dynamic>{
-          'id': commentId,
-          'created_at': DateTime.now().toUtc().toIso8601String(),
-          'author': 'Mr. Rex (mobile)',
-          'body': (transcript == null || transcript.isEmpty)
-              ? extraction.summary
-              : '${extraction.summary}\n\n"$transcript"',
-          'subject': '',
-          'meeting_link': '',
-          'source': 'mobile',
-          'type': 'comment',
-        });
-      }, 'mobile: $action $contactName');
-
+      await _save(doc, sha, 'mobile: $action ${contact['name']}');
       return CrmWriteResult(
         ok: true,
-        contactId: contactId,
-        contactName: contactName,
+        contactId: contact['id']?.toString() ?? '',
+        contactName: contact['name']?.toString() ?? extraction.client,
         action: action,
         webUrl: AppConfig.hasCrmWeb ? AppConfig.crmWebUrl : null,
       );
-    } on CrmServiceException catch (e) {
-      return CrmWriteResult.failure(e.message);
     } catch (e) {
       return CrmWriteResult.failure(e.toString());
     }
@@ -203,7 +153,6 @@ class GithubCrmService implements LeadsCrmService {
     for (final Map<String, dynamic> c in _contacts(doc)) {
       if (c['id']?.toString().toLowerCase() == r) return c;
       if (c['name']?.toString().toLowerCase() == r) return c;
-      if (c['company']?.toString().toLowerCase() == r) return c;
     }
     return null;
   }
@@ -212,51 +161,27 @@ class GithubCrmService implements LeadsCrmService {
     final Map<String, dynamic>? existing = _find(doc, name);
     if (existing != null) return ('merged', existing);
     final Map<String, dynamic> contact = <String, dynamic>{
-      'id': _newUuid(),
+      'id': DateTime.now().microsecondsSinceEpoch.toRadixString(16),
       'name': name,
       'company': name,
       'status': 'new',
       'deal_status': 'open',
       'source': 'mobile',
       'tags': <String>['mobile'],
-      'email_events': <dynamic>[],
       'comments': <dynamic>[],
-      'contact_people': <dynamic>[],
-      'invoices': <dynamic>[],
-      'meetings': <dynamic>[],
       'created_at': DateTime.now().toUtc().toIso8601String(),
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     (doc['contacts'] as List<dynamic>).add(contact);
     return ('created', contact);
   }
 
-  bool _hasComment(List<dynamic> comments, String id) =>
-      comments.whereType<Map<String, dynamic>>().any(
-            (Map<String, dynamic> c) => c['id']?.toString() == id,
-          );
-
   List<CrmInteraction> _interactions(Map<String, dynamic> contact) {
     final List<CrmInteraction> out = <CrmInteraction>[];
-    for (final String key in <String>['comments', 'interactions', 'emails', 'email_events']) {
+    for (final String key in <String>['comments', 'interactions', 'emails']) {
       final List<dynamic> list = (contact[key] as List<dynamic>?) ?? <dynamic>[];
       out.addAll(list.whereType<Map<String, dynamic>>().map(CrmInteraction.fromJson));
     }
     out.sort((CrmInteraction a, CrmInteraction b) => b.createdAt.compareTo(a.createdAt));
     return out;
-  }
-
-  static String _newUuid() {
-    final Random r = Random.secure();
-    final List<int> bytes = List<int>.generate(16, (_) => r.nextInt(256));
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    String hex(int v) => v.toRadixString(16).padLeft(2, '0');
-    return '${hex(bytes[0])}${hex(bytes[1])}${hex(bytes[2])}${hex(bytes[3])}-'
-        '${hex(bytes[4])}${hex(bytes[5])}-'
-        '${hex(bytes[6])}${hex(bytes[7])}-'
-        '${hex(bytes[8])}${hex(bytes[9])}-'
-        '${hex(bytes[10])}${hex(bytes[11])}${hex(bytes[12])}${hex(bytes[13])}'
-        '${hex(bytes[14])}${hex(bytes[15])}';
   }
 }
