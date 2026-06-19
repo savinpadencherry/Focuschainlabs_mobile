@@ -6,12 +6,7 @@ import '../../models/extraction.dart';
 /// the repo"); a mock backs demo mode.
 abstract interface class LeadsCrmService {
   /// Upsert a lead and append the spoken update as an interaction (F2/F5).
-  /// [captureId] provides idempotency — retries must not duplicate comments.
-  Future<CrmWriteResult> upsertLead(
-    Extraction extraction, {
-    String? transcript,
-    String? captureId,
-  });
+  Future<CrmWriteResult> upsertLead(Extraction extraction, {String? transcript});
 
   /// A contact's interaction history for the "show the history" view.
   Future<List<CrmInteraction>> history(String contactRef);

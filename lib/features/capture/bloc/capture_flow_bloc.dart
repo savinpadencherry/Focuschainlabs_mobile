@@ -10,9 +10,8 @@ part 'capture_flow_event.dart';
 part 'capture_flow_state.dart';
 
 /// Orchestrates a single capture session end-to-end (spec §6.1 / §6.2):
-/// compose → extract → review/edit → confirm/write → undo. Voice capture is
-/// handled in [RecordingPanel]; this bloc receives the final transcript via
-/// [CaptureManualSubmitted].
+/// transcript → extract → review/edit → confirm/write → undo. Voice capture is
+/// handled in the composer (live partials); the bloc receives the final text.
 class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
   CaptureFlowBloc({
     required CaptureRepository captureRepository,
@@ -33,7 +32,7 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
     CaptureManualSubmitted event,
     Emitter<CaptureFlowState> emit,
   ) async {
-    if (event.transcript.trim().isEmpty || state.isBusy) return;
+    if (event.transcript.trim().isEmpty) return;
     await _processTranscript(event.transcript, emit);
   }
 
@@ -45,7 +44,6 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
     emit(state.copyWith(
       status: CaptureFlowStatus.extracting,
       transcript: transcript,
-      message: null,
     ));
     try {
       final Extraction extraction = await _captures.draft(transcript);
@@ -88,7 +86,7 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
     Emitter<CaptureFlowState> emit,
   ) async {
     final Extraction? extraction = state.extraction;
-    if (extraction == null || !extraction.isValid || state.isBusy) return;
+    if (extraction == null || !extraction.isValid) return;
     emit(state.copyWith(status: CaptureFlowStatus.writing));
 
     final Capture capture = state.source ??
@@ -100,24 +98,15 @@ class CaptureFlowBloc extends Bloc<CaptureFlowEvent, CaptureFlowState> {
           transcript: state.transcript,
         );
 
-    try {
-      final ActivityEntry entry = await _captures.confirm(
-        capture: capture,
-        extraction: extraction,
-      );
-      emit(state.copyWith(
-        status: CaptureFlowStatus.written,
-        writtenCapture: capture,
-        activityEntry: entry,
-      ));
-    } catch (error) {
-      emit(state.copyWith(
-        status: CaptureFlowStatus.review,
-        message: error is FormatException
-            ? error.message
-            : 'Write failed — please try again.',
-      ));
-    }
+    final ActivityEntry entry = await _captures.confirm(
+      capture: capture,
+      extraction: extraction,
+    );
+    emit(state.copyWith(
+      status: CaptureFlowStatus.written,
+      writtenCapture: capture,
+      activityEntry: entry,
+    ));
   }
 
   Future<void> _onUndoRequested(

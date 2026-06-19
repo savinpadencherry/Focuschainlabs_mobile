@@ -2,6 +2,7 @@ part of 'capture_flow_bloc.dart';
 
 enum CaptureFlowStatus {
   idle,
+  recording,
   transcribing,
   extracting,
   review,

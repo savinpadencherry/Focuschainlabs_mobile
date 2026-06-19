@@ -83,51 +83,33 @@ class CaptureRepository {
 
   // --- Confirm / write (F5–F7) ---------------------------------------------
 
-  /// Writes a confirmed capture and fans out (F5–F7). The user-reviewed
-  /// [extraction.destination] drives routing:
-  /// - `crm` — log to GitHub CRM (and Trello if action items are selected)
-  /// - `trello` — create task cards; also logs to CRM when a real client is named
-  ///   or action items are present (task-only notes without a client skip CRM)
+  /// Writes a confirmed capture and fans out (F5–F7): the note is logged to the
+  /// CRM as an interaction; selected action items (and any follow-up) become
+  /// Trello cards. Routing follows the product flow — a follow-up is primarily
+  /// a *task* (→ Trello board), everything else is a *CRM update* (→ CRM,
+  /// shown in desktop view with its interaction history).
   Future<ActivityEntry> confirm({
     required Capture capture,
     required Extraction extraction,
   }) async {
     await _ensureLoaded();
 
-    final bool hasClient = extraction.client.trim().isNotEmpty &&
-        extraction.client.toLowerCase() != 'unknown client';
-    final bool hasSelectedTasks =
-        extraction.actionItems.any((ActionItem a) => a.selected);
-    final bool routesToTrello = extraction.routesToTrello;
+    // The AI router decides CRM vs Trello (a bare follow-up also counts as task).
+    final bool isTask =
+        extraction.routesToTrello || extraction.updateType == UpdateType.followUp;
 
-    final bool writeCrm =
-        extraction.destination == 'crm' || hasSelectedTasks || hasClient;
-    final bool writeTrello = routesToTrello ||
-        hasSelectedTasks ||
-        extraction.updateType == UpdateType.followUp;
+    // 1) CRM — always log the spoken update against the contact.
+    final CrmWriteResult crm =
+        await _crm.upsertLead(extraction, transcript: capture.transcript);
 
-    CrmWriteResult crm = const CrmWriteResult(
-      ok: true,
-      contactId: '',
-      contactName: '',
-      action: 'skipped',
-    );
-    if (writeCrm) {
-      crm = await _crm.upsertLead(
-        extraction,
-        transcript: capture.transcript,
-        captureId: capture.id,
-      );
-      if (!crm.ok) {
-        throw FormatException(crm.error ?? 'CRM write failed.');
-      }
-    }
-
+    // 2) Trello — push selected action items; for a bare follow-up, push one
+    //    card built from the summary so the task still lands on the board.
     final List<ActionItem> selected =
         extraction.actionItems.where((ActionItem a) => a.selected).toList();
+    final bool hasTaskWork = selected.isNotEmpty || isTask;
     bool taskOk = true;
     String? firstCardUrl;
-    if (writeTrello) {
+    if (hasTaskWork) {
       final List<ActionItem> cards = selected.isNotEmpty
           ? selected
           : <ActionItem>[
@@ -144,11 +126,11 @@ class CaptureRepository {
       }
     }
 
-    final String? trelloUrl = writeTrello
+    final String? trelloUrl = hasTaskWork
         ? (AppConfig.hasTrelloBoard ? AppConfig.trelloBoardUrl : firstCardUrl)
         : null;
     final String? crmWebUrl =
-        writeCrm && AppConfig.hasCrmWeb ? AppConfig.crmWebUrl : crm.webUrl;
+        AppConfig.hasCrmWeb ? AppConfig.crmWebUrl : crm.webUrl;
 
     final ActivityEntry entry = ActivityEntry(
       id: 'act-${DateTime.now().microsecondsSinceEpoch}',
@@ -156,9 +138,9 @@ class CaptureRepository {
       description: extraction.summary,
       updateType: extraction.updateType,
       timestamp: DateTime.now(),
-      crmOk: writeCrm ? crm.ok : true,
-      taskOk: writeTrello ? taskOk : true,
-      isTask: writeTrello,
+      crmOk: crm.ok,
+      taskOk: taskOk,
+      isTask: isTask,
       contactId: crm.contactId.isEmpty ? null : crm.contactId,
       crmWebUrl: crmWebUrl,
       trelloUrl: trelloUrl,

@@ -16,8 +16,9 @@ import '../../pending/view/pending_page.dart';
 import '../../profile/view/profile_page.dart';
 import 'nav_destinations.dart';
 
-/// Root authenticated surface. Switches between a curved mobile navigation bar
-/// and a side navigation rail on tablet / web so every breakpoint feels native.
+/// Root authenticated surface. Switches between a bottom navigation bar
+/// (phone) and a side navigation rail (tablet / web) so the same screens feel
+/// native at every breakpoint.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -129,61 +130,21 @@ class _MobileShell extends StatelessWidget {
       body: body,
       floatingActionButton: const _TalkToRexFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.only(bottom: 8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(34),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: AppColors.navy.withValues(alpha: 0.18),
-                  blurRadius: 28,
-                  spreadRadius: -8,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(34),
-              child: CurvedNavigationBar(
-                index: index,
-                height: 66,
-                color: AppColors.navyDeep,
-                buttonBackgroundColor: AppColors.green,
-                backgroundColor: Colors.transparent,
-                animationCurve: Curves.easeOutCubic,
-                animationDuration: const Duration(milliseconds: 420),
-                onTap: onSelect,
-                items: List<Widget>.generate(
-                  navDestinations.length,
-                  (int itemIndex) {
-                    final NavItem item = navDestinations[itemIndex];
-                    final bool selected = itemIndex == index;
-                    return Semantics(
-                      label: item.label,
-                      button: true,
-                      selected: selected,
-                      child: Tooltip(
-                        message: item.label,
-                        child: AnimatedScale(
-                          scale: selected ? 1.08 : 1,
-                          duration: const Duration(milliseconds: 220),
-                          child: Icon(
-                            selected ? item.selectedIcon : item.icon,
-                            size: selected ? 27 : 23,
-                            color: selected
-                                ? Colors.white
-                                : AppColors.greenSoft,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+      bottomNavigationBar: CurvedNavigationBar(
+        index: index,
+        height: 64,
+        color: AppColors.surface,
+        buttonBackgroundColor: AppColors.green,
+        backgroundColor: Colors.transparent,
+        animationCurve: AppMotion.ease,
+        animationDuration: const Duration(milliseconds: 380),
+        onTap: onSelect,
+        items: <Widget>[
+          for (int i = 0; i < navDestinations.length; i++)
+            Icon(
+              i == index ? navDestinations[i].selectedIcon : navDestinations[i].icon,
+              color: i == index ? Colors.white : AppColors.inkSoft,
+              size: 26,
             ),
         ],
       ),

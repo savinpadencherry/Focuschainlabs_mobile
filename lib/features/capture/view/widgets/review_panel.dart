@@ -32,11 +32,6 @@ class ReviewPanel extends StatelessWidget {
               if (state.transcript != null)
                 TranscriptCard(transcript: state.transcript!),
               AppSpacing.vGapLg,
-              DestinationField(
-                value: extraction.destination,
-                onChanged: (String d) => update(extraction.copyWith(destination: d)),
-              ),
-              AppSpacing.vGapLg,
               ClientHeaderField(
                 extraction: extraction,
                 onChanged: (String v) => update(extraction.copyWith(client: v)),
@@ -72,39 +67,22 @@ class ReviewPanel extends StatelessWidget {
                 AppSpacing.vGapLg,
                 FollowUpField(date: extraction.followUpDate!),
               ],
-              AppSpacing.vGapLg,
-              WritePreviewCard(extraction: extraction),
-              if (state.message != null) ...<Widget>[
-                AppSpacing.vGapSm,
-                Text(
-                  state.message!,
-                  style: const TextStyle(color: AppColors.negative, fontSize: 13),
-                ),
-              ],
             ],
           ),
         ),
-        _ConfirmBar(
-          canWrite: extraction.isValid,
-          destination: extraction.destination,
-        ),
+        _ConfirmBar(canWrite: extraction.isValid),
       ],
     );
   }
 }
 
 class _ConfirmBar extends StatelessWidget {
-  const _ConfirmBar({required this.canWrite, required this.destination});
+  const _ConfirmBar({required this.canWrite});
 
   final bool canWrite;
-  final String destination;
 
   @override
   Widget build(BuildContext context) {
-    final String label = destination == 'trello'
-        ? 'Confirm & create task'
-        : 'Confirm & write to CRM';
-
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: const BoxDecoration(
@@ -130,7 +108,7 @@ class _ConfirmBar extends StatelessWidget {
                       .add(const CaptureConfirmed())
                   : null,
               icon: const Icon(Icons.check_rounded),
-              label: Text(label),
+              label: const Text('Confirm & write'),
             ),
           ),
         ],
