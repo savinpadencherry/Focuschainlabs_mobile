@@ -130,23 +130,31 @@ class _MobileShell extends StatelessWidget {
       body: body,
       floatingActionButton: const _TalkToRexFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: CurvedNavigationBar(
-        index: index,
-        height: 64,
+      bottomNavigationBar: ColoredBox(
         color: AppColors.surface,
-        buttonBackgroundColor: AppColors.green,
-        backgroundColor: Colors.transparent,
-        animationCurve: AppMotion.ease,
-        animationDuration: const Duration(milliseconds: 380),
-        onTap: onSelect,
-        items: <Widget>[
-          for (int i = 0; i < navDestinations.length; i++)
-            Icon(
-              i == index ? navDestinations[i].selectedIcon : navDestinations[i].icon,
-              color: i == index ? Colors.white : AppColors.inkSoft,
-              size: 26,
-            ),
-        ],
+        child: SafeArea(
+          top: false,
+          child: CurvedNavigationBar(
+            index: index,
+            height: 64,
+            color: AppColors.surface,
+            buttonBackgroundColor: AppColors.green,
+            backgroundColor: Colors.transparent,
+            animationCurve: AppMotion.ease,
+            animationDuration: const Duration(milliseconds: 380),
+            onTap: onSelect,
+            items: <Widget>[
+              for (int i = 0; i < navDestinations.length; i++)
+                Icon(
+                  i == index
+                      ? navDestinations[i].selectedIcon
+                      : navDestinations[i].icon,
+                  color: i == index ? Colors.white : AppColors.inkSoft,
+                  size: 26,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
