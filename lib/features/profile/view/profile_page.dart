@@ -4,8 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/data/seed_data.dart';
+import '../../../core/get.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/user.dart';
+import '../../../core/services/auth/google_auth_service.dart';
+import '../../../core/services/firebase/firebase_bootstrap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
@@ -32,6 +35,8 @@ class ProfilePage extends StatelessWidget {
             children: <Widget>[
               _Identity(user: user),
               AppSpacing.vGapXxl,
+              const _CalendarConnectCard(),
+              AppSpacing.vGapLg,
               ConnectionsCard(integrations: SeedData.integrations()),
               AppSpacing.vGapLg,
               _OrgCard(user: user),
@@ -130,6 +135,62 @@ class _OrgCard extends StatelessWidget {
             trailing: Icon(Icons.verified_user_outlined, color: AppColors.positive),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Opt-in Google Calendar connection (the sensitive scope is requested here,
+/// not at login, so sign-in stays friction-free).
+class _CalendarConnectCard extends StatefulWidget {
+  const _CalendarConnectCard();
+
+  @override
+  State<_CalendarConnectCard> createState() => _CalendarConnectCardState();
+}
+
+class _CalendarConnectCardState extends State<_CalendarConnectCard> {
+  bool _busy = false;
+  bool _connected = false;
+
+  Future<void> _connect() async {
+    setState(() => _busy = true);
+    final bool ok = await app<GoogleAuthService>().connectCalendar();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _connected = ok;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Calendar connected — your meetings will appear shortly.'
+          : 'Calendar permission was not granted.'),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Only meaningful with a real Firebase/Google session.
+    if (!FirebaseBootstrap.ready) return const SizedBox.shrink();
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+        title: const Text('Google Calendar',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(_connected
+            ? 'Connected · pulling your meetings'
+            : 'Connect to show today’s meetings and capture prompts'),
+        trailing: _busy
+            ? const SizedBox(
+                width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : (_connected
+                ? const Icon(Icons.check_circle_rounded, color: AppColors.positive)
+                : TextButton(onPressed: _connect, child: const Text('Connect'))),
       ),
     );
   }

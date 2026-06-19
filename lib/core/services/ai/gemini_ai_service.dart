@@ -114,6 +114,11 @@ single structured CRM update. Follow these rules strictly:
 - Decide "destination": "trello" if the note is primarily an actionable
   task/to-do/follow-up the rep must DO; "crm" if it is information about a lead
   or client to RECORD (a comment, interaction, or stage change).
+- If destination is "trello", set "trello_action": "create" (a new task),
+  "move" (move an existing card to another list), "update" (edit a card),
+  "complete" (mark a card done), or "delete" (remove a card). For everything
+  except create, set "trello_target_card" to the existing card's title/topic;
+  for "move" also set "trello_target_list" to the destination list name.
 - update_type is one of: comment, interaction, stage_change, follow_up.
 - sentiment is one of: positive, neutral, negative, at_risk.
 - Dates are ISO YYYY-MM-DD. Use null for anything not stated; never invent facts.
@@ -146,6 +151,12 @@ Question: "$query"''';
         'type': 'STRING',
         'enum': <String>['crm', 'trello'],
       },
+      'trello_action': <String, dynamic>{
+        'type': 'STRING',
+        'enum': <String>['create', 'move', 'update', 'complete', 'delete'],
+      },
+      'trello_target_card': <String, dynamic>{'type': 'STRING', 'nullable': true},
+      'trello_target_list': <String, dynamic>{'type': 'STRING', 'nullable': true},
       'deal_stage_change': <String, dynamic>{'type': 'STRING', 'nullable': true},
       'next_steps': <String, dynamic>{
         'type': 'ARRAY',

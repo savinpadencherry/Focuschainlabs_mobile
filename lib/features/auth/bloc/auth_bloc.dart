@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../core/models/user.dart';
 import '../../../core/repository/auth_repository.dart';
+import '../../../core/services/auth/google_auth_service.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -35,9 +36,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final AppUser user = await _authRepository.signIn();
       emit(AuthState.authenticated(user));
-    } catch (_) {
+    } on SignInCancelled {
+      // User dismissed the picker — quietly return to login, no error.
       emit(const AuthState.unauthenticated());
+    } catch (error) {
+      emit(AuthState.unauthenticated(error: _readable(error)));
     }
+  }
+
+  String _readable(Object error) {
+    final String raw = error.toString().replaceFirst('Exception: ', '');
+    return raw.length > 200 ? '${raw.substring(0, 197)}…' : raw;
   }
 
   Future<void> _onSignOutRequested(

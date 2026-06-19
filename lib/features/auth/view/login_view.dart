@@ -17,15 +17,26 @@ class LoginView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: ContentBounds(
-          maxWidth: Breakpoints.readableMaxWidth,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            child: context.isWide
-                ? Center(child: SingleChildScrollView(child: _LoginContent()))
-                : _LoginContent(),
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (AuthState p, AuthState c) => c.error != null && p.error != c.error,
+      listener: (BuildContext context, AuthState state) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text('Sign-in failed: ${state.error}'),
+            duration: const Duration(seconds: 6),
+          ));
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: ContentBounds(
+            maxWidth: Breakpoints.readableMaxWidth,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+              child: context.isWide
+                  ? Center(child: SingleChildScrollView(child: _LoginContent()))
+                  : _LoginContent(),
+            ),
           ),
         ),
       ),

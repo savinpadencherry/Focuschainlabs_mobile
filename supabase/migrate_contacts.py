@@ -3,11 +3,12 @@
 
 Run AFTER applying supabase/schema.sql.
 
-    export SUPABASE_URL=https://jptltprlzbcidkpbjipo.supabase.co
-    export SUPABASE_KEY=<service_role key>   # recommended; the publishable key
-                                             # also works with the UAT policies
-    # optional: a local path or raw GitHub URL (defaults to the repo's file)
-    # export CONTACTS_JSON=./data/crm/contacts.json
+    # easiest: put the service_role key in a file (no shell-quote pitfalls)
+    echo 'PASTE_SERVICE_ROLE_KEY' > supabase/service_key.txt
+    python3 supabase/migrate_contacts.py
+
+    # or via env vars (use straight quotes!):
+    export SUPABASE_KEY="PASTE_SERVICE_ROLE_KEY"
     python3 supabase/migrate_contacts.py
 
 Idempotent: upserts on the contact/interaction id (re-runnable).
@@ -16,8 +17,26 @@ import json
 import os
 import urllib.request
 
-URL = os.environ["SUPABASE_URL"].rstrip("/")
-KEY = os.environ["SUPABASE_KEY"]
+URL = os.environ.get(
+    "SUPABASE_URL", "https://jptltprlzbcidkpbjipo.supabase.co"
+).rstrip("/")
+
+
+def _key():
+    key = os.environ.get("SUPABASE_KEY", "").strip()
+    if key:
+        return key
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(here, "service_key.txt")
+    if os.path.exists(path):
+        return open(path).read().strip()
+    raise SystemExit(
+        "No key. Set SUPABASE_KEY or create supabase/service_key.txt with the "
+        "service_role key."
+    )
+
+
+KEY = _key()
 SOURCE = os.environ.get(
     "CONTACTS_JSON",
     "https://raw.githubusercontent.com/savinpadencherry/"

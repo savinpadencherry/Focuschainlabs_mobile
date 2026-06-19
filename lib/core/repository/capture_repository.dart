@@ -102,28 +102,17 @@ class CaptureRepository {
     final CrmWriteResult crm =
         await _crm.upsertLead(extraction, transcript: capture.transcript);
 
-    // 2) Trello — push selected action items; for a bare follow-up, push one
-    //    card built from the summary so the task still lands on the board.
+    // 2) Trello — perform the AI-chosen action (create/move/update/complete/
+    //    delete). Selected action items always create cards.
     final List<ActionItem> selected =
         extraction.actionItems.where((ActionItem a) => a.selected).toList();
     final bool hasTaskWork = selected.isNotEmpty || isTask;
     bool taskOk = true;
     String? firstCardUrl;
     if (hasTaskWork) {
-      final List<ActionItem> cards = selected.isNotEmpty
-          ? selected
-          : <ActionItem>[
-              ActionItem(title: extraction.summary, due: extraction.followUpDate),
-            ];
-      for (final ActionItem item in cards) {
-        final TrelloResult r = await _trello.createCard(
-          title: item.title,
-          description: 'For ${extraction.client} · logged from Mr. Rex mobile.',
-          due: item.due,
-        );
-        taskOk = taskOk && r.ok;
-        firstCardUrl ??= r.cardUrl;
-      }
+      final (bool ok, String? url) = await _runTrello(extraction, selected);
+      taskOk = ok;
+      firstCardUrl = url;
     }
 
     final String? trelloUrl = hasTaskWork
@@ -155,6 +144,80 @@ class CaptureRepository {
 
     await _persistAll();
     return entry;
+  }
+
+  /// Executes the Gemini-chosen Trello action. Returns (success, link).
+  Future<(bool, String?)> _runTrello(
+    Extraction extraction,
+    List<ActionItem> selected,
+  ) async {
+    final String action =
+        extraction.routesToTrello ? extraction.trelloAction : 'create';
+
+    if (action == 'create') {
+      final List<ActionItem> cards = selected.isNotEmpty
+          ? selected
+          : <ActionItem>[
+              ActionItem(title: extraction.summary, due: extraction.followUpDate),
+            ];
+      bool ok = true;
+      String? url;
+      for (final ActionItem item in cards) {
+        final TrelloResult r = await _trello.createCard(
+          title: item.title,
+          description: 'For ${extraction.client} · via Mr. Rex mobile.',
+          due: item.due,
+        );
+        ok = ok && r.ok;
+        url ??= r.cardUrl;
+      }
+      return (ok, url);
+    }
+
+    // Non-create actions act on an existing card resolved by name.
+    final String query = extraction.trelloTargetCard ?? extraction.summary;
+    final List<TrelloCardRef> matches = await _trello.findCards(query);
+    if (matches.isEmpty) {
+      final TrelloResult r = await _trello.createCard(
+        title: extraction.summary,
+        due: extraction.followUpDate,
+      );
+      return (r.ok, r.cardUrl);
+    }
+    final TrelloCardRef card = matches.first;
+    switch (action) {
+      case 'move':
+        final List<TrelloListRef> lists = await _trello.lists();
+        final TrelloListRef? target = _matchList(lists, extraction.trelloTargetList);
+        if (target == null) return (false, card.url);
+        final TrelloResult r = await _trello.moveCard(card.id, target.id);
+        return (r.ok, r.cardUrl ?? card.url);
+      case 'update':
+        final TrelloResult r = await _trello.updateCard(
+          card.id,
+          name: extraction.summary,
+          due: extraction.followUpDate,
+        );
+        return (r.ok, r.cardUrl ?? card.url);
+      case 'complete':
+        final TrelloResult r = await _trello.completeCard(card.id);
+        return (r.ok, r.cardUrl ?? card.url);
+      case 'delete':
+        final TrelloResult r = await _trello.deleteCard(card.id);
+        return (r.ok, card.url);
+      default:
+        return (true, card.url);
+    }
+  }
+
+  TrelloListRef? _matchList(List<TrelloListRef> lists, String? name) {
+    if (lists.isEmpty) return null;
+    if (name == null || name.trim().isEmpty) return lists.first;
+    final String n = name.toLowerCase();
+    for (final TrelloListRef l in lists) {
+      if (l.name.toLowerCase().contains(n)) return l;
+    }
+    return lists.first;
   }
 
   /// Interaction history for a contact, for the "show the history" view.

@@ -20,15 +20,22 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<AppUser> signIn() async {
     final AppUser user = await _google.signIn();
-    await _analytics.setUser(user.id);
-    await _analytics.log(AnalyticsEvents.signInSuccess);
+    // Analytics must never break a successful sign-in.
+    _track(() async {
+      await _analytics.setUser(user.id);
+      await _analytics.log(AnalyticsEvents.signInSuccess);
+    });
     return user;
   }
 
   @override
   Future<void> signOut() async {
-    await _analytics.log(AnalyticsEvents.signOut);
-    await _analytics.setUser(null);
+    _track(() => _analytics.log(AnalyticsEvents.signOut));
+    _track(() => _analytics.setUser(null));
     await _google.signOut();
+  }
+
+  void _track(Future<void> Function() op) {
+    op().catchError((_) {});
   }
 }
