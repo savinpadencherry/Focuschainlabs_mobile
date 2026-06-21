@@ -17,9 +17,12 @@ abstract interface class AiService {
   /// the next conversational reply, and — once enough has been gathered — the
   /// final [Extraction] to write (create/update). [clientHints] are existing
   /// CRM client names so Gemini reuses the exact name (update vs create).
+  /// [clientContext] is the resolved client's recent CRM history, so Rex can
+  /// ask sharper, context-aware questions.
   Future<ConversationResult> converse({
     required List<ConversationMessage> history,
     required List<String> clientHints,
+    String? clientContext,
   });
 }
 

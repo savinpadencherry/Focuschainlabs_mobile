@@ -67,6 +67,7 @@ class MockAiService implements AiService {
   Future<ConversationResult> converse({
     required List<ConversationMessage> history,
     required List<String> clientHints,
+    String? clientContext,
   }) async {
     await Future<void>.delayed(AppConstants.mockLatency);
     final List<ConversationMessage> userMsgs =

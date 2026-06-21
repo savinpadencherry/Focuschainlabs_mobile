@@ -81,11 +81,12 @@ class GeminiAiService implements AiService {
   Future<ConversationResult> converse({
     required List<ConversationMessage> history,
     required List<String> clientHints,
+    String? clientContext,
   }) async {
     final Map<String, dynamic> body = <String, dynamic>{
       'systemInstruction': <String, dynamic>{
         'parts': <dynamic>[
-          <String, dynamic>{'text': _conversePrompt(clientHints)},
+          <String, dynamic>{'text': _conversePrompt(clientHints, clientContext)},
         ],
       },
       'contents': history
@@ -160,7 +161,7 @@ ${hints.join(', ')}. If you don't know, say so plainly — never invent specific
 
 Question: "$query"''';
 
-  String _conversePrompt(List<String> hints) => '''
+  String _conversePrompt(List<String> hints, String? context) => '''
 You are Mr. Rex, a warm, sharp sales assistant talking with a rep right after a
 client interaction. Have a short, natural back-and-forth to gather enough to log
 a CRM update. Ask ONE concise question at a time about the things that matter:
@@ -170,6 +171,12 @@ any follow-up date. Sound human and encouraging — not like a form.
 
 Existing CRM clients (reuse the EXACT name if the rep means one of these, so we
 update instead of duplicating): ${hints.isEmpty ? '(none yet)' : hints.join(', ')}.
+${context == null || context.isEmpty ? '' : '''
+
+What our CRM already knows about this client — use it to ask SHARPER, specific
+follow-ups (e.g. "last time they wanted a revised quote — did that close?") and
+to avoid asking what we already know:
+$context'''}
 
 Each turn return ONLY JSON: { "reply": string, "done": boolean,
 "extraction": <object|null> }.
