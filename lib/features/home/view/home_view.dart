@@ -9,7 +9,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../auth/bloc/auth_bloc.dart';
-import '../../capture/view/capture_view.dart';
+import '../../capture/view/conversation_view.dart';
 import '../../pending/view/pending_page.dart';
 import '../bloc/home_bloc.dart';
 import 'widgets/activity_tile.dart';
@@ -56,7 +56,7 @@ class HomeView extends StatelessWidget {
 
 /// Opens the capture flow for a pending capture or meeting.
 void _openCapture(BuildContext context, {Capture? source}) {
-  CaptureView.open(context, source: source).then((_) {
+  ConversationView.open(context, source: source).then((_) {
     if (context.mounted) context.read<HomeBloc>().add(const HomeLoaded());
   });
 }

@@ -9,7 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/sentiment_chip.dart';
-import '../../capture/view/capture_view.dart';
+import '../../capture/view/conversation_view.dart';
 import 'widgets/client_sections.dart';
 
 /// Full client 360 (F1): contacts, deals, interaction timeline, emails and
@@ -34,7 +34,7 @@ class ClientDetailView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(client.name)),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => CaptureView.open(context),
+        onPressed: () => ConversationView.open(context),
         icon: const Icon(Icons.mic_rounded),
         label: const Text('Log update'),
       ),

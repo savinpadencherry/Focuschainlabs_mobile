@@ -8,7 +8,7 @@ import '../../../core/services/reminders/reminder_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/utils/responsive.dart';
-import '../../capture/view/capture_view.dart';
+import '../../capture/view/conversation_view.dart';
 import '../../home/view/home_page.dart';
 import '../../leads/view/leads_page.dart';
 import '../../meetings/view/meetings_page.dart';
@@ -250,7 +250,7 @@ class _TalkToRexFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
-      onPressed: () => CaptureView.open(context),
+      onPressed: () => ConversationView.open(context),
       icon: const Icon(Icons.mic_rounded),
       label: const Text('Talk to Rex'),
     );

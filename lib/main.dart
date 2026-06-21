@@ -10,7 +10,7 @@ import 'core/services/navigator_service.dart';
 import 'core/services/push/push_service.dart';
 import 'core/services/reminders/reminder_service.dart';
 import 'core/services/supabase/supabase_bootstrap.dart';
-import 'features/capture/view/capture_view.dart';
+import 'features/capture/view/conversation_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,5 +32,5 @@ Future<void> main() async {
 /// Tapping a post-meeting reminder opens the capture screen.
 void _openCaptureFromNotification(String? payload) {
   final BuildContext? context = app<NavigatorService>().navigatorKey.currentContext;
-  if (context != null) CaptureView.open(context);
+  if (context != null) ConversationView.open(context);
 }

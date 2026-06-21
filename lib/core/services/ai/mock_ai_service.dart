@@ -1,5 +1,6 @@
 import '../../constants/app_constants.dart';
 import '../../data/seed_data.dart';
+import '../../models/conversation.dart';
 import '../../models/enums.dart';
 import '../../models/extraction.dart';
 import '../../models/lookup.dart';
@@ -59,6 +60,34 @@ class MockAiService implements AiService {
       actionItems: actions,
       followUpDate: followUp,
       notes: text.length > 140 ? text : null,
+    );
+  }
+
+  @override
+  Future<ConversationResult> converse({
+    required List<ConversationMessage> history,
+    required List<String> clientHints,
+  }) async {
+    await Future<void>.delayed(AppConstants.mockLatency);
+    final List<ConversationMessage> userMsgs =
+        history.where((ConversationMessage m) => m.role == ChatRole.user).toList();
+    final int turns = userMsgs.length;
+    const List<String> questions = <String>[
+      'Nice — how did it go? Was the scope or budget discussed?',
+      'Got it. Is the work confirmed, and is there a follow-up date?',
+    ];
+    if (turns < 3) {
+      return ConversationResult(
+        reply: questions[(turns - 1).clamp(0, questions.length - 1)],
+        done: false,
+      );
+    }
+    final String full = userMsgs.map((ConversationMessage m) => m.text).join('. ');
+    final Extraction extraction = await extract(full);
+    return ConversationResult(
+      reply: 'Perfect — here’s what I’ll save to the CRM. Tap save to confirm.',
+      done: true,
+      extraction: extraction,
     );
   }
 

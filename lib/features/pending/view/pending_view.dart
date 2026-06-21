@@ -6,7 +6,7 @@ import '../../../core/models/capture.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/state_views.dart';
-import '../../capture/view/capture_view.dart';
+import '../../capture/view/conversation_view.dart';
 import '../../home/view/widgets/capture_tile.dart';
 import '../bloc/pending_bloc.dart';
 
@@ -45,7 +45,7 @@ class PendingView extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: AppSpacing.md),
                             child: CaptureTile(
                               capture: c,
-                              onTap: () => CaptureView.open(context, source: c)
+                              onTap: () => ConversationView.open(context, source: c)
                                   .then((_) {
                                 if (context.mounted) {
                                   context

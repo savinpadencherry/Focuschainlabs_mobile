@@ -8,7 +8,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/state_views.dart';
-import '../../capture/view/capture_view.dart';
+import '../../capture/view/conversation_view.dart';
 import '../../home/view/widgets/meeting_tile.dart';
 import '../bloc/meetings_bloc.dart';
 
@@ -81,7 +81,7 @@ class _MeetingsList extends StatelessWidget {
       child: MeetingTile(
         meeting: m,
         onTap: m.awaitingCapture
-            ? () => CaptureView.open(
+            ? () => ConversationView.open(
                   context,
                   source: Capture(
                     id: 'cap-${m.id}',

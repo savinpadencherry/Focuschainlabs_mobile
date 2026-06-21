@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/app_config.dart';
+import '../../models/conversation.dart';
 import '../../models/extraction.dart';
 import '../../models/lookup.dart';
 import 'ai_service.dart';
@@ -76,6 +77,31 @@ class GeminiAiService implements AiService {
     }
   }
 
+  @override
+  Future<ConversationResult> converse({
+    required List<ConversationMessage> history,
+    required List<String> clientHints,
+  }) async {
+    final Map<String, dynamic> body = <String, dynamic>{
+      'systemInstruction': <String, dynamic>{
+        'parts': <dynamic>[
+          <String, dynamic>{'text': _conversePrompt(clientHints)},
+        ],
+      },
+      'contents': history
+          .where((ConversationMessage m) => !m.pending)
+          .map((ConversationMessage m) => m.toGeminiTurn())
+          .toList(),
+      'generationConfig': <String, dynamic>{
+        'temperature': 0.5,
+        'responseMimeType': 'application/json',
+        'responseSchema': _conversationSchema,
+      },
+    };
+    final String raw = await _generate(body);
+    return ConversationResult.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
   // --- HTTP ------------------------------------------------------------------
 
   Future<String> _generate(Map<String, dynamic> body) async {
@@ -134,6 +160,27 @@ ${hints.join(', ')}. If you don't know, say so plainly — never invent specific
 
 Question: "$query"''';
 
+  String _conversePrompt(List<String> hints) => '''
+You are Mr. Rex, a warm, sharp sales assistant talking with a rep right after a
+client interaction. Have a short, natural back-and-forth to gather enough to log
+a CRM update. Ask ONE concise question at a time about the things that matter:
+what was discussed, whether budget/finances came up and how much, whether the
+scope was confirmed, whether the work/deal is confirmed, overall sentiment, and
+any follow-up date. Sound human and encouraging — not like a form.
+
+Existing CRM clients (reuse the EXACT name if the rep means one of these, so we
+update instead of duplicating): ${hints.isEmpty ? '(none yet)' : hints.join(', ')}.
+
+Each turn return ONLY JSON: { "reply": string, "done": boolean,
+"extraction": <object|null> }.
+- While you still need more, set done=false, extraction=null, and put your next
+  question in "reply".
+- Once you have enough (usually after 2-4 exchanges, or when the rep signals
+  they're done), set done=true, put a brief confirmation in "reply", and fill
+  "extraction" with the structured record (same field rules as a single capture;
+  null for unknowns, never invent). "client" must be the company/person; if it
+  matches an existing client above, use that exact name.''';
+
   static const Map<String, dynamic> _extractionSchema = <String, dynamic>{
     'type': 'OBJECT',
     'properties': <String, dynamic>{
@@ -179,4 +226,14 @@ Question: "$query"''';
     },
     'required': <String>['client', 'update_type', 'summary', 'sentiment', 'destination'],
   };
+
+  Map<String, dynamic> get _conversationSchema => <String, dynamic>{
+        'type': 'OBJECT',
+        'properties': <String, dynamic>{
+          'reply': <String, dynamic>{'type': 'STRING'},
+          'done': <String, dynamic>{'type': 'BOOLEAN'},
+          'extraction': <String, dynamic>{..._extractionSchema, 'nullable': true},
+        },
+        'required': <String>['reply', 'done'],
+      };
 }
