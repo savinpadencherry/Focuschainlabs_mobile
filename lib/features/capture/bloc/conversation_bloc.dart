@@ -38,10 +38,14 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final CaptureRepository _captures;
   final LeadsCrmService _crm;
   List<String> _hints = <String>[];
+  List<CrmContact> _contacts = <CrmContact>[];
 
   /// The resolved client's recent CRM history (fed to Gemini once known) so
   /// Rex can ask sharper, context-aware questions.
   String? _context;
+
+  /// The matched CRM contact (deal value/status) surfaced on the save card.
+  CrmContact? _contextContact;
 
   Future<void> _onOpened(
     ConversationOpened event,
@@ -49,11 +53,13 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   ) async {
     // Best-effort: existing client names so Gemini updates rather than dupes.
     try {
-      _hints = (await _crm.listLeads())
+      _contacts = await _crm.listLeads();
+      _hints = _contacts
           .map((c) => c.name)
           .where((String n) => n.isNotEmpty)
           .toList();
     } catch (_) {
+      _contacts = <CrmContact>[];
       _hints = <String>[];
     }
     // Post-meeting: we already know the client — load their history upfront.
@@ -63,9 +69,12 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     final String greeting = state.source != null
         ? 'Hey! How did your meeting with ${state.source!.clientName} go?'
         : 'Hey! Who did you meet or speak with, and how did it go?';
-    emit(state.copyWith(messages: <ConversationMessage>[
-      ConversationMessage(role: ChatRole.rex, text: greeting),
-    ]));
+    emit(state.copyWith(
+      messages: <ConversationMessage>[
+        ConversationMessage(role: ChatRole.rex, text: greeting),
+      ],
+      contextContact: _contextContact,
+    ));
   }
 
   /// Once a known client is mentioned, fetch their recent interactions once.
@@ -85,7 +94,25 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     }
   }
 
+  /// Best-effort match of a spoken client name to a known CRM contact, so we
+  /// can surface their open deal (value/status) on the save card.
+  CrmContact? _findContact(String name) {
+    final String needle = name.trim().toLowerCase();
+    if (needle.isEmpty) return null;
+    final String first = needle.split(' ').first;
+    for (final CrmContact c in _contacts) {
+      final String hay = c.name.toLowerCase();
+      if (hay == needle ||
+          hay.contains(needle) ||
+          (first.length > 2 && hay.contains(first))) {
+        return c;
+      }
+    }
+    return null;
+  }
+
   Future<void> _loadContext(String name) async {
+    _contextContact ??= _findContact(name);
     try {
       final List<CrmInteraction> history = await _crm.history(name);
       if (history.isEmpty) {
@@ -136,10 +163,14 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             ..add(ConversationMessage(role: ChatRole.rex, text: result.reply));
 
       final bool ready = result.done && (result.extraction?.isValid ?? false);
+      if (ready) {
+        _contextContact ??= _findContact(result.extraction!.client);
+      }
       emit(state.copyWith(
         messages: resolved,
         status: ready ? ConversationStatus.ready : ConversationStatus.idle,
         extraction: ready ? result.extraction : null,
+        contextContact: _contextContact,
       ));
     } catch (_) {
       final List<ConversationMessage> failed =
@@ -191,6 +222,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
 
   void _onReset(ConversationReset event, Emitter<ConversationState> emit) {
     _context = null;
+    _contextContact = null;
     emit(ConversationState(source: state.source));
     add(const ConversationOpened());
   }

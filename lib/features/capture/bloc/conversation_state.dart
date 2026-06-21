@@ -8,6 +8,7 @@ class ConversationState extends Equatable {
     this.messages = const <ConversationMessage>[],
     this.source,
     this.extraction,
+    this.contextContact,
     this.writtenCapture,
     this.activityEntry,
     this.message,
@@ -21,6 +22,9 @@ class ConversationState extends Equatable {
 
   /// Set once Rex has gathered enough to save.
   final Extraction? extraction;
+
+  /// The matched CRM contact (deal value/status) shown on the save card.
+  final CrmContact? contextContact;
   final Capture? writtenCapture;
   final ActivityEntry? activityEntry;
   final String? message;
@@ -36,6 +40,7 @@ class ConversationState extends Equatable {
     List<ConversationMessage>? messages,
     Capture? source,
     Extraction? extraction,
+    CrmContact? contextContact,
     Capture? writtenCapture,
     ActivityEntry? activityEntry,
     String? message,
@@ -45,6 +50,7 @@ class ConversationState extends Equatable {
         messages: messages ?? this.messages,
         source: source ?? this.source,
         extraction: extraction ?? this.extraction,
+        contextContact: contextContact ?? this.contextContact,
         writtenCapture: writtenCapture ?? this.writtenCapture,
         activityEntry: activityEntry ?? this.activityEntry,
         message: message,
@@ -56,6 +62,7 @@ class ConversationState extends Equatable {
         messages,
         source,
         extraction,
+        contextContact,
         writtenCapture,
         activityEntry,
         message,

@@ -1,5 +1,6 @@
 import '../../constants/app_constants.dart';
 import '../../data/seed_data.dart';
+import '../../models/client_brief.dart';
 import '../../models/conversation.dart';
 import '../../models/enums.dart';
 import '../../models/extraction.dart';
@@ -89,6 +90,45 @@ class MockAiService implements AiService {
       reply: 'Perfect — here’s what I’ll save to the CRM. Tap save to confirm.',
       done: true,
       extraction: extraction,
+    );
+  }
+
+  @override
+  Future<ClientBrief> brief({
+    required String clientName,
+    required String context,
+  }) async {
+    await Future<void>.delayed(AppConstants.mockLatency);
+    final cl = SeedData.clients().firstWhere(
+      (c) => c.name.toLowerCase().contains(
+            clientName.toLowerCase().split(' ').first,
+          ),
+      orElse: () => SeedData.clients().first,
+    );
+    final String last = cl.interactions.isEmpty
+        ? 'No interactions logged yet'
+        : cl.interactions.first.summary;
+    return ClientBrief(
+      headline:
+          '${cl.name} is ${cl.sentiment.label.toLowerCase()} — $last.',
+      opener:
+          'Good to reconnect — last time we spoke about ${last.toLowerCase()}. '
+          'How are things looking on your side?',
+      talkingPoints: <String>[
+        if (cl.interactions.isNotEmpty) 'Recap: $last',
+        'Reaffirm the value and next milestone',
+        if (cl.pendingFollowUps.isNotEmpty)
+          'Pending: ${cl.pendingFollowUps.join(', ')}',
+      ],
+      thingsToConfirm: <String>[
+        'Is the budget confirmed, and for how much?',
+        'Is the scope locked, or still being shaped?',
+        'Who signs off, and what is the timeline?',
+      ],
+      risks: <String>[
+        if (cl.sentiment.label.toLowerCase().contains('risk'))
+          'Sentiment is at-risk — listen for hesitation or competitors',
+      ],
     );
   }
 

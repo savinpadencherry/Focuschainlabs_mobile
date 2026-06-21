@@ -144,6 +144,7 @@ class _Thread extends StatelessWidget {
         if (showCard)
           ExtractionSummaryCard(
             extraction: state.extraction!,
+            contextContact: state.contextContact,
             saving: state.status == ConversationStatus.writing,
             onSave: () =>
                 context.read<ConversationBloc>().add(const ConversationConfirmed()),

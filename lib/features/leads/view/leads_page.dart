@@ -12,6 +12,7 @@ import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/mono_label.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/web_view_screen.dart';
+import '../../prep/view/prep_view.dart';
 
 /// The in-app Leads list, pulled live from the Leads Agent CRM
 /// (`data/crm/contacts.json` in the repo). Tapping a lead opens the CRM in the
@@ -155,6 +156,12 @@ class _LeadCard extends StatelessWidget {
               contact.value,
               style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.green),
             ),
+          IconButton(
+            tooltip: 'Prep me for a call',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => PrepView.open(context, contact.name),
+            icon: const Icon(Icons.auto_awesome_outlined, size: 20),
+          ),
         ],
       ),
     );

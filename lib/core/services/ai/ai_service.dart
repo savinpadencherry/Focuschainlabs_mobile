@@ -1,3 +1,4 @@
+import '../../models/client_brief.dart';
 import '../../models/conversation.dart';
 import '../../models/extraction.dart';
 import '../../models/lookup.dart';
@@ -23,6 +24,15 @@ abstract interface class AiService {
     required List<ConversationMessage> history,
     required List<String> clientHints,
     String? clientContext,
+  });
+
+  /// Prep mode: brief the rep before a call with [clientName], grounded in
+  /// [context] (their recent CRM history + open-deal value/status). Returns a
+  /// structured [ClientBrief] — headline, opener, talking points, things to
+  /// confirm, and risks.
+  Future<ClientBrief> brief({
+    required String clientName,
+    required String context,
   });
 }
 

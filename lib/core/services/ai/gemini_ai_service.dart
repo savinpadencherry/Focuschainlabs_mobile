@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/app_config.dart';
+import '../../models/client_brief.dart';
 import '../../models/conversation.dart';
 import '../../models/extraction.dart';
 import '../../models/lookup.dart';
@@ -103,6 +104,30 @@ class GeminiAiService implements AiService {
     return ConversationResult.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 
+  @override
+  Future<ClientBrief> brief({
+    required String clientName,
+    required String context,
+  }) async {
+    final Map<String, dynamic> body = <String, dynamic>{
+      'contents': <dynamic>[
+        <String, dynamic>{
+          'role': 'user',
+          'parts': <dynamic>[
+            <String, dynamic>{'text': _briefPrompt(clientName, context)},
+          ],
+        },
+      ],
+      'generationConfig': <String, dynamic>{
+        'temperature': 0.4,
+        'responseMimeType': 'application/json',
+        'responseSchema': _briefSchema,
+      },
+    };
+    final String raw = await _generate(body);
+    return ClientBrief.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
   // --- HTTP ------------------------------------------------------------------
 
   Future<String> _generate(Map<String, dynamic> body) async {
@@ -187,6 +212,44 @@ Each turn return ONLY JSON: { "reply": string, "done": boolean,
   "extraction" with the structured record (same field rules as a single capture;
   null for unknowns, never invent). "client" must be the company/person; if it
   matches an existing client above, use that exact name.''';
+
+  String _briefPrompt(String client, String context) => '''
+You are Mr. Rex, a sharp sales assistant prepping a rep for an upcoming call
+with $client. Using ONLY the CRM context below, write a tight pre-call brief.
+Be specific and grounded — reference the actual deal, value, stage, and recent
+interactions. Never invent facts; if the context is thin, say what little is
+known and focus on what to confirm.
+
+Return ONLY JSON matching the schema:
+- "headline": one sentence on where things stand (mention deal value/stage if known).
+- "opener": a warm, natural way to open the call.
+- "talking_points": 2-4 concrete points to raise, drawn from the history.
+- "things_to_confirm": 2-4 open questions to nail down (budget, scope, timeline, decision).
+- "risks": 0-3 watch-outs (e.g. comparing vendors, gone quiet, pricing pushback).
+
+CRM context for $client:
+$context''';
+
+  static const Map<String, dynamic> _briefSchema = <String, dynamic>{
+    'type': 'OBJECT',
+    'properties': <String, dynamic>{
+      'headline': <String, dynamic>{'type': 'STRING'},
+      'opener': <String, dynamic>{'type': 'STRING'},
+      'talking_points': <String, dynamic>{
+        'type': 'ARRAY',
+        'items': <String, dynamic>{'type': 'STRING'},
+      },
+      'things_to_confirm': <String, dynamic>{
+        'type': 'ARRAY',
+        'items': <String, dynamic>{'type': 'STRING'},
+      },
+      'risks': <String, dynamic>{
+        'type': 'ARRAY',
+        'items': <String, dynamic>{'type': 'STRING'},
+      },
+    },
+    'required': <String>['headline'],
+  };
 
   static const Map<String, dynamic> _extractionSchema = <String, dynamic>{
     'type': 'OBJECT',
