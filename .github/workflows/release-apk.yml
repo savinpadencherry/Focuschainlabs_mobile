@@ -1,0 +1,111 @@
+name: Release APK
+
+# Manual UAT / distribution build. Creates a GitHub Release and attaches the
+# signed release APK — ready to sideload or push to Firebase App Distribution.
+#
+# Required repo Secrets:
+#   GEMINI_API_KEY, SUPABASE_ANON_KEY, CRM_GITHUB_TOKEN, CRM_WEB_URL,
+#   TRELLO_KEY, TRELLO_TOKEN, TRELLO_LIST_ID, TRELLO_BOARD_URL
+#
+# Run: Actions → Release APK → Run workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.3.0-uat1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release (recommended for UAT)'
+        required: false
+        type: boolean
+        default: true
+      release_notes:
+        description: 'Release notes (optional — leave blank for auto summary)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Inject runtime keys
+        run: |
+          cat > .env <<EOF
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL=gemini-2.5-flash
+          SUPABASE_URL=https://jptltprlzbcidkpbjipo.supabase.co
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          GITHUB_TOKEN=${{ secrets.CRM_GITHUB_TOKEN }}
+          GITHUB_CRM_REPO=savinpadencherry/Focuschainlabs_Leads_Agent
+          GITHUB_CRM_PATH=data/crm/contacts.json
+          GITHUB_CRM_BRANCH=main
+          CRM_WEB_URL=${{ secrets.CRM_WEB_URL }}
+          TRELLO_KEY=${{ secrets.TRELLO_KEY }}
+          TRELLO_TOKEN=${{ secrets.TRELLO_TOKEN }}
+          TRELLO_LIST_ID=${{ secrets.TRELLO_LIST_ID }}
+          TRELLO_BOARD_URL=${{ secrets.TRELLO_BOARD_URL }}
+          EOF
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --release
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "release/mr-rex-${{ inputs.tag }}.apk"
+
+      - name: Write release notes
+        env:
+          CUSTOM_NOTES: ${{ inputs.release_notes }}
+        run: |
+          if [ -n "$CUSTOM_NOTES" ]; then
+            printf '%s\n' "$CUSTOM_NOTES" > release/notes.md
+          else
+            cat > release/notes.md <<EOF
+          Android UAT build from commit ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}.
+
+          ## Install
+          Download \`mr-rex-${{ inputs.tag }}.apk\` below and sideload, or upload to Firebase App Distribution.
+
+          ## Build
+          - Flutter stable
+          - Signed with the committed UAT keystore (\`fcl-uat.keystore\`)
+          EOF
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Mr. Rex Android ${{ inputs.tag }}
+          body_path: release/notes.md
+          prerelease: ${{ inputs.prerelease }}
+          files: release/mr-rex-${{ inputs.tag }}.apk
+          generate_release_notes: ${{ inputs.release_notes == '' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mr-rex-android-${{ inputs.tag }}
+          path: release/mr-rex-${{ inputs.tag }}.apk
+          if-no-files-found: error

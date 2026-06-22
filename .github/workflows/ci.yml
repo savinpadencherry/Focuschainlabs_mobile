@@ -4,8 +4,8 @@ name: CI & UAT build
 #   • Android APK (uploaded as a build artifact for sideloading)
 #   • Flutter web (deployed to GitHub Pages from main)
 #
-# Real-data UAT: set repo Secrets (GEMINI_API_KEY, CRM_GITHUB_TOKEN, CRM_WEB_URL,
-# TRELLO_*). They're baked only into the private APK artifact — the public web
+# Real-data UAT: set repo Secrets (GEMINI_API_KEY, SUPABASE_ANON_KEY,
+# CRM_GITHUB_TOKEN, CRM_WEB_URL, TRELLO_*). They're baked only into the
 # demo always builds in safe mock mode.
 
 on:
@@ -48,6 +48,8 @@ jobs:
           cat > .env <<EOF
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL=gemini-2.5-flash
+          SUPABASE_URL=https://jptltprlzbcidkpbjipo.supabase.co
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           GITHUB_TOKEN=${{ secrets.CRM_GITHUB_TOKEN }}
           GITHUB_CRM_REPO=savinpadencherry/Focuschainlabs_Leads_Agent
           GITHUB_CRM_PATH=data/crm/contacts.json
