@@ -13,4 +13,7 @@ abstract interface class LeadsCrmService {
 
   /// All leads/contacts, for the in-app Leads list (pulled from the repo).
   Future<List<CrmContact>> listLeads();
+
+  /// Update pipeline stage for a contact (search → quick status from Leads tab).
+  Future<bool> updateStatus(String contactId, String newStatus);
 }

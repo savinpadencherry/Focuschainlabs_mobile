@@ -42,6 +42,12 @@ class MockLeadsCrmService implements LeadsCrmService {
   }
 
   @override
+  Future<bool> updateStatus(String contactId, String newStatus) async {
+    await Future<void>.delayed(AppConstants.mockLatency);
+    return true;
+  }
+
+  @override
   Future<List<CrmInteraction>> history(String contactRef) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final DateTime now = DateTime.now();
