@@ -99,6 +99,24 @@ class GithubCrmService implements LeadsCrmService {
   }
 
   @override
+  Future<bool> updateStatus(String contactId, String newStatus) async {
+    try {
+      final (Map<String, dynamic> doc, String sha) = await _load();
+      final Map<String, dynamic>? contact = _find(doc, contactId);
+      if (contact == null) return false;
+      contact['status'] = newStatus;
+      if (newStatus == 'won' || newStatus == 'lost') {
+        contact['deal_status'] = newStatus;
+      }
+      contact['updated_at'] = DateTime.now().toUtc().toIso8601String();
+      await _save(doc, sha, 'mobile: status $contactId → $newStatus');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
   Future<CrmWriteResult> upsertLead(
     Extraction extraction, {
     String? transcript,

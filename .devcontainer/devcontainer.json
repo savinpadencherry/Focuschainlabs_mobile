@@ -8,7 +8,7 @@
       "onAutoForward": "openBrowser"
     }
   },
-  "postCreateCommand": "apt-get update && apt-get install -y git-lfs && git lfs install && flutter config --enable-web && flutter pub get",
+  "postCreateCommand": "apt-get update && apt-get install -y git-lfs && git lfs install && flutter config --enable-web && (yes | flutter doctor --android-licenses 2>/dev/null || true) && flutter pub get",
   "customizations": {
     "vscode": {
       "extensions": [

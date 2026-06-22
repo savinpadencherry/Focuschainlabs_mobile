@@ -19,12 +19,30 @@ class SupabaseCrmService implements LeadsCrmService {
           .from('contacts')
           .select()
           .order('updated_at', ascending: false)
-          .limit(200);
+          .limit(500);
       return rows
           .map((dynamic r) => CrmContact.fromJson(Map<String, dynamic>.from(r as Map)))
           .toList();
     } catch (_) {
       return <CrmContact>[];
+    }
+  }
+
+  @override
+  Future<bool> updateStatus(String contactId, String newStatus) async {
+    try {
+      final String now = DateTime.now().toUtc().toIso8601String();
+      final Map<String, dynamic> patch = <String, dynamic>{
+        'status': newStatus,
+        'updated_at': now,
+      };
+      if (newStatus == 'won' || newStatus == 'lost') {
+        patch['deal_status'] = newStatus;
+      }
+      await _db.from('contacts').update(patch).eq('id', contactId);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
