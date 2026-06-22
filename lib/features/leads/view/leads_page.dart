@@ -44,18 +44,38 @@ String _stageLabel(String slug) {
 }
 
 String? _nextStage(String current) {
-  final int idx = kPipelineStages.indexOf(current);
+  final String normalized = _normalizeStage(current);
+  final int idx = kPipelineStages.indexOf(normalized);
   if (idx < 0 || idx >= kPipelineStages.length - 2) return null;
   return kPipelineStages[idx + 1];
+}
+
+/// Maps CRM slugs, seed labels ("Lead", "Negotiation"), and title case to pipeline slugs.
+String _normalizeStage(String status) {
+  final String s = status.trim().toLowerCase();
+  if (kPipelineStages.contains(s)) return s;
+  switch (s) {
+    case 'lead':
+      return 'new';
+    case 'negotiation':
+      return 'proposal';
+    default:
+      for (final String stage in kPipelineStages) {
+        if (_stageLabel(stage).toLowerCase() == s) return stage;
+      }
+      return 'new';
+  }
 }
 
 bool _matchesQuery(CrmContact c, String query) {
   final String needle = query.trim().toLowerCase();
   if (needle.isEmpty) return true;
+  final String stage = _stageLabel(_normalizeStage(c.status));
   final String blob = <String>[
     c.name,
     c.company,
     c.status,
+    stage,
     c.owner,
     c.value,
   ].join(' ').toLowerCase();
@@ -71,11 +91,18 @@ class LeadsPage extends StatefulWidget {
 }
 
 class _LeadsPageState extends State<LeadsPage> {
-  late Future<List<CrmContact>> _future = app<LeadsCrmService>().listLeads();
+  late Future<List<CrmContact>> _future = _loadLeads();
   final TextEditingController _searchCtrl = TextEditingController();
   bool _selectMode = false;
   final Set<String> _selected = <String>{};
   List<CrmContact> _allLeads = <CrmContact>[];
+
+  Future<List<CrmContact>> _loadLeads() {
+    return app<LeadsCrmService>().listLeads().then((List<CrmContact> list) {
+      _allLeads = list;
+      return list;
+    });
+  }
 
   @override
   void dispose() {
@@ -84,7 +111,7 @@ class _LeadsPageState extends State<LeadsPage> {
   }
 
   void _refresh() => setState(() {
-        _future = app<LeadsCrmService>().listLeads();
+        _future = _loadLeads();
       });
 
   Future<void> _advanceStatus(CrmContact contact, String newStatus) async {
@@ -105,17 +132,14 @@ class _LeadsPageState extends State<LeadsPage> {
 
   Future<void> _bulkAdvance() async {
     final LeadsCrmService crm = app<LeadsCrmService>();
+    final Map<String, CrmContact> byId = <String, CrmContact>{
+      for (final CrmContact lead in _allLeads) lead.id: lead,
+    };
     int updated = 0;
     for (final String id in _selected) {
-      CrmContact? c;
-      for (final CrmContact lead in _allLeads) {
-        if (lead.id == id) {
-          c = lead;
-          break;
-        }
-      }
+      final CrmContact? c = byId[id];
       if (c == null) continue;
-      final String? nxt = _nextStage(c.status.isEmpty ? 'new' : c.status);
+      final String? nxt = _nextStage(c.status);
       if (nxt != null && await crm.updateStatus(id, nxt)) updated++;
     }
     if (!mounted) return;
@@ -130,11 +154,15 @@ class _LeadsPageState extends State<LeadsPage> {
   }
 
   void _showStatusSheet(CrmContact contact) {
-    final String cur = contact.status.isEmpty ? 'new' : contact.status;
+    final String cur = _normalizeStage(contact.status);
     final String? nxt = _nextStage(cur);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      ),
       builder: (BuildContext ctx) {
         return SafeArea(
           child: Padding(
@@ -149,7 +177,7 @@ class _LeadsPageState extends State<LeadsPage> {
                 ),
                 Text(
                   'Current: ${_stageLabel(cur)}',
-                  style: const TextStyle(color: AppColors.inkSoft),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 AppSpacing.vGapMd,
                 if (nxt != null)
@@ -162,7 +190,7 @@ class _LeadsPageState extends State<LeadsPage> {
                   ),
                 AppSpacing.vGapSm,
                 DropdownButtonFormField<String>(
-                  value: cur,
+                  initialValue: cur,
                   decoration: const InputDecoration(labelText: 'Set stage'),
                   items: kPipelineStages
                       .map((String s) => DropdownMenuItem<String>(
@@ -212,13 +240,16 @@ class _LeadsPageState extends State<LeadsPage> {
           child: Column(
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: TextField(
                   controller: _searchCtrl,
                   onChanged: (_) => setState(() {}),
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: 'Search name, company, status…',
                     prefixIcon: const Icon(Icons.search_rounded),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     suffixIcon: _searchCtrl.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded),
@@ -228,10 +259,8 @@ class _LeadsPageState extends State<LeadsPage> {
                             },
                           )
                         : null,
-                    filled: true,
-                    fillColor: AppColors.surfaceMuted,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -265,9 +294,6 @@ class _LeadsPageState extends State<LeadsPage> {
                       return const LoadingView(label: 'Pulling leads from the CRM…');
                     }
                     final List<CrmContact> all = snap.data ?? <CrmContact>[];
-                    if (snap.connectionState == ConnectionState.done) {
-                      _allLeads = all;
-                    }
                     final List<CrmContact> leads = all
                         .where((CrmContact c) => _matchesQuery(c, _searchCtrl.text))
                         .toList();
@@ -335,7 +361,7 @@ class _LeadsList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 120),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
         children: <Widget>[
           MonoLabel(
             '${leads.length} shown · $total total · live from CRM',
@@ -385,6 +411,7 @@ class _LeadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String stage = _stageLabel(_normalizeStage(contact.status));
     return AppCard(
       onTap: selectMode ? onToggleSelect : () => _open(context),
       color: isSelected ? AppColors.greenSoft : AppColors.surface,
@@ -420,15 +447,15 @@ class _LeadCard extends StatelessWidget {
                   contact.name,
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   <String>[
                     if (contact.company.isNotEmpty) contact.company,
-                    if (contact.status.isNotEmpty) contact.status,
+                    if (contact.status.isNotEmpty) stage,
                   ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.inkSoft, fontSize: 13),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
               ],
             ),
