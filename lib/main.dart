@@ -9,7 +9,6 @@ import 'core/services/firebase/firebase_bootstrap.dart';
 import 'core/services/navigator_service.dart';
 import 'core/services/push/push_service.dart';
 import 'core/services/reminders/reminder_service.dart';
-import 'core/services/supabase/supabase_bootstrap.dart';
 import 'features/capture/view/conversation_view.dart';
 
 Future<void> main() async {
@@ -22,7 +21,6 @@ Future<void> main() async {
   }
   // Backends — each degrades to demo mode if its config/keys are absent.
   await FirebaseBootstrap.init();
-  await SupabaseBootstrap.init();
   initializeGetIt();
   unawaited(PushService().init());
   unawaited(app<ReminderService>().init(onTap: _openCaptureFromNotification));

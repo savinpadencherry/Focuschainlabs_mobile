@@ -16,14 +16,13 @@ import 'services/calendar/google_calendar_service.dart';
 import 'services/calendar/mock_calendar_service.dart';
 import 'services/crm/github_crm_service.dart';
 import 'services/crm/leads_crm_service.dart';
+import 'services/crm/rest_crm_service.dart';
 import 'services/crm/mock_leads_crm_service.dart';
-import 'services/crm/supabase_crm_service.dart';
 import 'services/firebase/analytics_service.dart';
 import 'services/firebase/firebase_bootstrap.dart';
 import 'services/local_store.dart';
 import 'services/navigator_service.dart';
 import 'services/reminders/reminder_service.dart';
-import 'services/supabase/supabase_bootstrap.dart';
 import 'services/tasks/http_trello_service.dart';
 import 'services/tasks/mock_trello_service.dart';
 import 'services/tasks/trello_service.dart';
@@ -64,11 +63,10 @@ void initializeGetIt() {
         : const MockCalendarService(),
   );
 
-  // CRM — Supabase when configured (the shared database), else the GitHub repo,
-  // else mock.
+  // CRM — Cloud Run REST API when configured, else GitHub repo, else mock.
   app.registerLazySingleton<LeadsCrmService>(
-    () => SupabaseBootstrap.ready
-        ? SupabaseCrmService()
+    () => AppConfig.hasCloudRunBackend
+        ? RestCrmService()
         : (AppConfig.hasGithubCrm
             ? GithubCrmService()
             : const MockLeadsCrmService()),

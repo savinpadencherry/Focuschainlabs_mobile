@@ -44,7 +44,13 @@ abstract final class AppConfig {
   static String get crmWebUrl =>
       _read('CRM_WEB_URL', const String.fromEnvironment('CRM_WEB_URL'));
 
-  // --- Supabase (CRM database) ---
+  // --- Cloud Run REST API (CRM database) ---
+  static String get cloudRunUrl =>
+      _read('CLOUD_RUN_URL', const String.fromEnvironment('CLOUD_RUN_URL'));
+  static String get apiSecretKey =>
+      _read('API_SECRET_KEY', const String.fromEnvironment('API_SECRET_KEY'));
+
+  // --- Supabase (legacy CRM database) ---
   static String get supabaseUrl =>
       _read('SUPABASE_URL', const String.fromEnvironment('SUPABASE_URL'));
   static String get supabaseAnonKey =>
@@ -62,6 +68,8 @@ abstract final class AppConfig {
 
   // --- Capability flags ---
   static bool get hasGemini => geminiApiKey.isNotEmpty;
+  static bool get hasCloudRunBackend =>
+      cloudRunUrl.isNotEmpty && apiSecretKey.isNotEmpty;
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
   static bool get hasGithubCrm => githubToken.isNotEmpty && githubCrmRepo.isNotEmpty;

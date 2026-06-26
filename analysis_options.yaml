@@ -1,5 +1,11 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Legacy Supabase reference implementations (supabase_flutter removed).
+    - lib/core/services/crm/supabase_crm_service.dart
+    - lib/core/services/supabase/supabase_bootstrap.dart
+
 linter:
   rules:
     prefer_single_quotes: true
