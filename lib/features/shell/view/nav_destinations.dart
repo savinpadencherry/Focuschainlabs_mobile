@@ -14,30 +14,27 @@ class NavItem {
   final IconData selectedIcon;
 }
 
+/// Three surfaces, in the order a day runs: ask what is waiting, work the
+/// pipeline, find a property.
+///
+/// Profile is deliberately not here. It is somewhere you go once a month, and
+/// spending a quarter of the navigation bar on it would push the three things
+/// people use all day into a narrower space. It lives behind the avatar in
+/// each surface's header instead.
 const List<NavItem> navDestinations = <NavItem>[
   NavItem(
-    label: 'Home',
-    icon: Icons.home_outlined,
-    selectedIcon: Icons.home_rounded,
+    label: 'Ona',
+    icon: Icons.auto_awesome_outlined,
+    selectedIcon: Icons.auto_awesome_rounded,
   ),
   NavItem(
-    label: 'Leads',
-    icon: Icons.people_outline_rounded,
-    selectedIcon: Icons.people_rounded,
+    label: 'Pipeline',
+    icon: Icons.view_kanban_outlined,
+    selectedIcon: Icons.view_kanban_rounded,
   ),
   NavItem(
-    label: 'Meetings',
-    icon: Icons.calendar_month_outlined,
-    selectedIcon: Icons.calendar_month_rounded,
-  ),
-  NavItem(
-    label: 'Captures',
-    icon: Icons.mic_none_rounded,
-    selectedIcon: Icons.mic_rounded,
-  ),
-  NavItem(
-    label: 'Profile',
-    icon: Icons.person_outline_rounded,
-    selectedIcon: Icons.person_rounded,
+    label: 'Listings',
+    icon: Icons.apartment_outlined,
+    selectedIcon: Icons.apartment_rounded,
   ),
 ];

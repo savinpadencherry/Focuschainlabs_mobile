@@ -1,24 +1,25 @@
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/get.dart';
-import '../../../core/models/meeting.dart';
-import '../../../core/repository/meeting_repository.dart';
-import '../../../core/services/reminders/reminder_service.dart';
+import '../../../core/repository/crm_repository.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_motion.dart';
 import '../../../core/utils/responsive.dart';
-import '../../capture/view/conversation_view.dart';
-import '../../home/view/home_page.dart';
-import '../../leads/view/leads_page.dart';
-import '../../meetings/view/meetings_page.dart';
-import '../../pending/view/pending_page.dart';
-import '../../profile/view/profile_page.dart';
+import '../../listings/bloc/listings_bloc.dart';
+import '../../listings/view/listings_view.dart';
+import '../../ona/bloc/ona_bloc.dart';
+import '../../ona/view/ona_view.dart';
+import '../../pipeline/bloc/pipeline_bloc.dart';
+import '../../pipeline/view/pipeline_view.dart';
 import 'nav_destinations.dart';
+import 'widgets/pill_nav_bar.dart';
 
-/// Root authenticated surface. Switches between a bottom navigation bar
-/// (phone) and a side navigation rail (tablet / web) so the same screens feel
-/// native at every breakpoint.
+/// Root authenticated surface: Ona · Pipeline · Listings.
+///
+/// The three data blocs live here, and the pages stay alive in an
+/// [IndexedStack]. Switching tabs must not throw away a half-typed Ona thread
+/// or refetch a board the user looked at four seconds ago — on a phone in a
+/// lift that refetch is a spinner and nothing else.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -26,85 +27,76 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
+class _AppShellState extends State<AppShell> {
   int _index = 0;
-
-  static const List<Widget> _pages = <Widget>[
-    HomePage(key: ValueKey<String>('home')),
-    LeadsPage(key: ValueKey<String>('leads')),
-    MeetingsPage(key: ValueKey<String>('meetings')),
-    PendingPage(key: ValueKey<String>('pending')),
-    ProfilePage(key: ValueKey<String>('profile')),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _checkReminders();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkReminders();
-  }
-
-  /// On open/resume, prompt for any meeting that just ended (F3, client-side).
-  Future<void> _checkReminders() async {
-    try {
-      final List<Meeting> awaiting =
-          await app<MeetingRepository>().awaitingCapture();
-      await app<ReminderService>().remindEndedMeetings(awaiting);
-    } catch (_) {
-      // Non-fatal.
-    }
-  }
 
   void _select(int value) {
     if (value != _index) setState(() => _index = value);
   }
 
-  Widget get _body => AnimatedSwitcher(
-        duration: const Duration(milliseconds: 320),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (Widget child, Animation<double> animation) =>
-            FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.02, 0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
+  @override
+  Widget build(BuildContext context) {
+    final CrmRepository repository = app<CrmRepository>();
+
+    return MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<OnaBloc>(
+          create: (_) => OnaBloc(repository: repository)..add(const OnaOpened()),
         ),
-        child: _pages[_index],
+        BlocProvider<PipelineBloc>(
+          create: (_) =>
+              PipelineBloc(repository: repository)..add(const PipelineLoaded()),
+        ),
+        BlocProvider<ListingsBloc>(
+          create: (_) =>
+              ListingsBloc(repository: repository)..add(const ListingsLoaded()),
+        ),
+      ],
+      child: _ShellScaffold(index: _index, onSelect: _select),
+    );
+  }
+}
+
+class _ShellScaffold extends StatelessWidget {
+  const _ShellScaffold({required this.index, required this.onSelect});
+
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  /// Kept alive, but only the visible one animates in.
+  ///
+  /// A cross-fade between two IndexedStack children would show both mid-way;
+  /// this instead slides the incoming page a few pixels, which reads as
+  /// "changed surface" without implying a spatial direction the tabs do not
+  /// actually have.
+  Widget get _body => IndexedStack(
+        index: index,
+        children: <Widget>[
+          for (int i = 0; i < 3; i++)
+            _PageFade(
+              visible: i == index,
+              child: const <Widget>[
+                OnaView(),
+                PipelineView(),
+                ListingsView(),
+              ][i],
+            ),
+        ],
       );
 
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(
-      mobile: (_) => _MobileShell(
-        index: _index,
-        onSelect: _select,
+      mobile: (_) => Scaffold(
+        backgroundColor: AppColors.paper,
+        extendBody: true,
         body: _body,
+        bottomNavigationBar: PillNavBar(index: index, onSelect: onSelect),
       ),
-      tablet: (_) => _WideShell(
-        index: _index,
-        onSelect: _select,
-        body: _body,
-        extended: false,
-      ),
+      tablet: (_) => _WideShell(index: index, onSelect: onSelect, body: _body),
       desktop: (_) => _WideShell(
-        index: _index,
-        onSelect: _select,
+        index: index,
+        onSelect: onSelect,
         body: _body,
         extended: true,
       ),
@@ -112,49 +104,24 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 }
 
-class _MobileShell extends StatelessWidget {
-  const _MobileShell({
-    required this.index,
-    required this.onSelect,
-    required this.body,
-  });
+/// Fades and lifts a page as it becomes the visible one.
+class _PageFade extends StatelessWidget {
+  const _PageFade({required this.visible, required this.child});
 
-  final int index;
-  final ValueChanged<int> onSelect;
-  final Widget body;
+  final bool visible;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: body,
-      floatingActionButton: const _TalkToRexFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: ColoredBox(
-        color: AppColors.surface,
-        child: SafeArea(
-          top: false,
-          child: CurvedNavigationBar(
-            index: index,
-            height: 64,
-            color: AppColors.surface,
-            buttonBackgroundColor: AppColors.green,
-            backgroundColor: Colors.transparent,
-            animationCurve: AppMotion.ease,
-            animationDuration: const Duration(milliseconds: 380),
-            onTap: onSelect,
-            items: <Widget>[
-              for (int i = 0; i < navDestinations.length; i++)
-                Icon(
-                  i == index
-                      ? navDestinations[i].selectedIcon
-                      : navDestinations[i].icon,
-                  color: i == index ? Colors.white : AppColors.inkSoft,
-                  size: 26,
-                ),
-            ],
-          ),
-        ),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      opacity: visible ? 1 : 0,
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        offset: visible ? Offset.zero : const Offset(0, 0.015),
+        child: child,
       ),
     );
   }
@@ -165,7 +132,7 @@ class _WideShell extends StatelessWidget {
     required this.index,
     required this.onSelect,
     required this.body,
-    required this.extended,
+    this.extended = false,
   });
 
   final int index;
@@ -176,6 +143,7 @@ class _WideShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.paper,
       body: Row(
         children: <Widget>[
           SingleChildScrollView(
@@ -188,6 +156,7 @@ class _WideShell extends StatelessWidget {
                   extended: extended,
                   minWidth: 76,
                   minExtendedWidth: 208,
+                  backgroundColor: AppColors.paper,
                   selectedIndex: index,
                   onDestinationSelected: onSelect,
                   leading: Padding(
@@ -209,7 +178,6 @@ class _WideShell extends StatelessWidget {
           Expanded(child: body),
         ],
       ),
-      floatingActionButton: const _TalkToRexFab(),
     );
   }
 }
@@ -232,27 +200,23 @@ class _RailLeading extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
-          child: const Text('🦖', style: TextStyle(fontSize: 18)),
+          child: const Text(
+            'O',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
         ),
         if (extended) ...<Widget>[
           const SizedBox(width: 10),
-          const Text('Mr. Rex',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const Text(
+            'Secona',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
         ],
       ],
-    );
-  }
-}
-
-class _TalkToRexFab extends StatelessWidget {
-  const _TalkToRexFab();
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => ConversationView.open(context),
-      icon: const Icon(Icons.mic_rounded),
-      label: const Text('Talk to Rex'),
     );
   }
 }

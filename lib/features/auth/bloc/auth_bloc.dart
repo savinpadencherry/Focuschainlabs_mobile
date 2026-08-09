@@ -22,7 +22,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
-    final AppUser? user = await _authRepository.restoreSession();
+    AppUser? user;
+    try {
+      user = await _authRepository.restoreSession();
+    } catch (_) {
+      // No session to restore, or no Firebase in this binary (tests, or a
+      // build without google-services.json). Either way the answer is the
+      // login screen — an uncaught throw here leaves the app on the splash
+      // for ever, which looks like a hang rather than a sign-in prompt.
+      user = null;
+    }
     emit(user == null
         ? const AuthState.unauthenticated()
         : AuthState.authenticated(user));

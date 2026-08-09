@@ -12,8 +12,8 @@ import 'auth_gate.dart';
 /// Root widget. Provides the app-wide [AuthBloc], applies the Material 3 theme,
 /// and clamps text scaling so layouts stay intact at extreme accessibility
 /// settings while still honouring user preferences.
-class MrRexApp extends StatelessWidget {
-  const MrRexApp({super.key});
+class SeconaApp extends StatelessWidget {
+  const SeconaApp({super.key});
 
   @override
   Widget build(BuildContext context) {

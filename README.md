@@ -1,49 +1,82 @@
-# Mr. Rex — Sales Companion
+# Secona — the CRM on your phone
 
-Flutter client for **Mr. Rex** by **FocusChain Labs**: a conversation-first
-sales companion. Client context in seconds, CRM updates without forms, and
-follow-ups that never slip.
+Flutter client for **Secona** by **FocusChain Labs**. It is not a companion app
+with its own data: it is a second front end onto the *same* Cloud SQL database
+the Streamlit web app renders from. A stage moved on a phone is on a colleague's
+screen the moment they refresh, because there is nothing to sync.
 
-> **MVP runs out of the box — no backend, no API keys.** The app ships in
-> *demo mode* with seeded data so the full loop (lookup → capture → extract →
-> review → write → undo) is usable immediately. Wiring the real Supabase +
-> Claude backend is a registration swap — see **[docs/SETUP.md](docs/SETUP.md)**.
+```
+Flutter ──HTTPS + Google ID token──▶ mobile-api (Cloud Run) ─┐
+                                                             ├─▶ Cloud SQL
+Streamlit CRM (Cloud Run) ───────────────────────────────────┘
+```
 
-## What's inside
+The API lives in the **Focuschainlabs_Leads_Agent** repo under `mobile_api/`.
+It imports the web app's own modules — `utils.ona_planner` and
+`rex.plan_runner` for Ona, `rex.pipeline` for the board, `utils.listings_store`
+for inventory — so "3 BHK in Whitefield under 4 Cr" resolves to the same intent
+and the same answer on both surfaces. A second implementation would be a second
+opinion, and the two would drift within a week.
 
-- 🔎 **Ask Rex** — conversational client 360 + grounded product answers with citations (F1)
-- 🎙️ **Talk to Rex** — voice/typed note → structured extraction → glance, edit, confirm (F2/F4)
-- 📅 **Meetings & pending captures** — post-meeting prompts that are never lost (F3)
-- ✍️ **One-tap write + undo** — CRM / task / calendar fan-out with partial-failure surfacing (F5–F7)
-- 👤 **Auth, roles, connections** — role-aware home and integration status (F9/F10)
-- 📱 **Responsive** — phone, tablet and web from one codebase
+## The three surfaces
+
+- **Ona** — the assistant. Opens on the morning brief, answers in components
+  rather than paragraphs, and never writes without being asked twice: it
+  proposes, you confirm, then it shows the record as stored.
+- **Pipeline** — the board, scored and ranked by the same `rex.intelligence`
+  scoring the web app uses. Stage moves, notes and edits are audited.
+- **Listings** — inventory search with removable filter chips, and a share
+  composer that records what went to whom.
+
+## Access
+
+Sign-in is Google, and membership is the CRM's invite list
+(`org_config.resolve_membership`). An address that is not on it gets a clear
+"no access" message rather than an empty app. Your role decides what you see —
+a rep's own book, an admin's whole org — enforced on the server, not here.
 
 ## Run
 
 ```bash
 flutter pub get
-flutter run                         # mobile
-flutter run -d chrome               # web
+flutter run --dart-define=API_BASE_URL=https://<mobile-api-url>
 ```
 
 ```bash
-flutter analyze && flutter test     # quality gate
-flutter build apk --debug           # Android
-flutter build web --release         # Web → build/web
+flutter analyze && flutter test     # the quality gate CI runs
+flutter build apk --release
 ```
 
-## Project layout
+Without `API_BASE_URL` the app builds and starts, then says it cannot reach the
+CRM. There is deliberately no demo mode: a rep cannot tell seeded data from
+their real pipeline until they have acted on it.
 
-A clean, layered architecture (BLoC + repositories + service interfaces, DI via
-`get_it`). Every file is kept ≤500 lines and feature-scoped.
+## Builds
+
+Every push to `main` runs analyze + test and publishes a signed APK to the
+rolling [`android-latest`](../../releases/tag/android-latest) pre-release.
+`Actions → Release APK` cuts a specific tagged build when you need one to keep.
+
+The APK is signed with the committed UAT keystore on purpose: Google Sign-In
+binds to a certificate SHA-1, and a per-build key would break sign-in on every
+install.
+
+### Repo secrets
+
+| Secret | Why |
+|---|---|
+| `API_BASE_URL` | the mobile API's Cloud Run URL |
+| `CRM_WEB_URL` | the Streamlit app, for the in-app webview |
+
+## Layout
 
 ```
-lib/app        root + theming + auth gate
-lib/core       constants · theme · models · services · repositories · DI
-lib/features   auth · home · lookup · capture · meetings · pending · client · profile · shell
-lib/shared     reusable widgets
+lib/core/models        Lead · Listing · Ona turns, and the JSON coercions
+lib/core/services/api  the single HTTP door (SeconaApi)
+lib/core/repository    CrmRepository — one repository, because the surfaces
+                       are not independent
+lib/features/ona       chat, chips, deal cards, receipts
+lib/features/pipeline  board, filters, lead sheet
+lib/features/listings  search, cards, share composer
+lib/shared/widgets     chips, cards, empty and error states
 ```
-
-See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full map and
-**[docs/SETUP.md](docs/SETUP.md)** for hosting (free via the GitHub Student
-Pack) and the demo-mode → live checklist.

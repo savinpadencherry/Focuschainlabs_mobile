@@ -6,29 +6,23 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app/app.dart';
 import 'core/get.dart';
 import 'core/services/firebase/firebase_bootstrap.dart';
-import 'core/services/navigator_service.dart';
 import 'core/services/push/push_service.dart';
-import 'core/services/reminders/reminder_service.dart';
-import 'features/capture/view/conversation_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Load keys from the bundled .env (optional — the app runs on mocks without it).
+
+  // The API address is written into .env by the release workflow. A build
+  // without it still starts; the surfaces report that they cannot reach the
+  // CRM rather than showing invented data.
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {
-    // No/empty .env: fall back to --dart-define and the offline mocks.
+    // No .env bundled: fall back to --dart-define.
   }
-  // Backends — each degrades to demo mode if its config/keys are absent.
+
   await FirebaseBootstrap.init();
   initializeGetIt();
   unawaited(PushService().init());
-  unawaited(app<ReminderService>().init(onTap: _openCaptureFromNotification));
-  runApp(const MrRexApp());
-}
 
-/// Tapping a post-meeting reminder opens the capture screen.
-void _openCaptureFromNotification(String? payload) {
-  final BuildContext? context = app<NavigatorService>().navigatorKey.currentContext;
-  if (context != null) ConversationView.open(context);
+  runApp(const SeconaApp());
 }

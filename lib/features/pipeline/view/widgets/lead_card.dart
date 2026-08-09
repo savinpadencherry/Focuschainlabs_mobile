@@ -1,0 +1,170 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/models/pipeline.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/crm_chips.dart';
+
+/// One lead on the board.
+///
+/// The left edge is a stage-coloured rail rather than a badge in the corner:
+/// scanning a column of twenty leads, the eye follows the rail and never has
+/// to read the word.
+class LeadCard extends StatelessWidget {
+  const LeadCard({super.key, required this.lead, required this.onTap});
+
+  final Lead lead;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return AppCard(
+      onTap: onTap,
+      padding: EdgeInsets.zero,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: stageColor(lead.stage),
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(AppSpacing.radiusLg),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 13, 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            lead.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (lead.moneyLabel.isNotEmpty) ...<Widget>[
+                          const SizedBox(width: 8),
+                          Text(
+                            lead.moneyLabel,
+                            style: text.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.green,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (lead.subtitle.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        lead.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 9),
+                    ChipRow(
+                      children: <Widget>[
+                        StageChip(lead.stage),
+                        if (lead.needsAttention) RiskChip(lead),
+                        if (lead.locality.isNotEmpty)
+                          TagChip(
+                            lead.locality,
+                            icon: Icons.place_outlined,
+                            color: AppColors.inkMuted,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    Row(
+                      children: <Widget>[
+                        _Score(score: lead.score),
+                        const Spacer(),
+                        Text(
+                          _idleLabel(lead.daysSinceActivity),
+                          style: text.bodySmall?.copyWith(
+                            color: lead.daysSinceActivity > 14
+                                ? AppColors.atRisk
+                                : AppColors.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _idleLabel(int days) {
+    if (days <= 0) return 'Active today';
+    if (days == 1) return '1 day quiet';
+    return '$days days quiet';
+  }
+}
+
+/// The score as a bar rather than a number alone — 58 means nothing on its own,
+/// but a bar filled just past halfway is legible at a glance.
+class _Score extends StatelessWidget {
+  const _Score({required this.score});
+
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final double fraction = (score.clamp(0, 100)) / 100;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          width: 46,
+          height: 5,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: fraction == 0 ? 0.02 : fraction,
+            child: Container(
+              decoration: BoxDecoration(
+                color: score >= 60
+                    ? AppColors.green
+                    : (score >= 35 ? AppColors.atRisk : AppColors.inkMuted),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Text(
+          '$score',
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.inkSoft,
+          ),
+        ),
+      ],
+    );
+  }
+}

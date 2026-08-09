@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
-/// The Mr. Rex brand mark: a rounded gradient badge carrying the friendly
+/// The Secona brand mark: a rounded gradient badge carrying the friendly
 /// T-Rex mascot. Used in the splash, login, home header and app bars so the
 /// brand reads consistently at every size. Pure-code (no image assets).
 class RexLogo extends StatelessWidget {
@@ -39,9 +40,16 @@ class RexLogo extends StatelessWidget {
         ],
       ),
       alignment: Alignment.center,
+      // The brand mark is the wordmark's "O" — one glyph, sized from the
+      // wrapper, so the splash and the rail cannot drift apart.
       child: Text(
-        '🦖',
-        style: TextStyle(fontSize: size * 0.5, color: glyphColor),
+        'O',
+        style: TextStyle(
+          fontSize: size * 0.52,
+          height: 1,
+          fontWeight: FontWeight.w800,
+          color: glyphColor,
+        ),
       ),
     );
   }
@@ -61,11 +69,15 @@ class RexWordmark extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
-          'Mr. Rex',
+          AppConstants.appName,
           style: Theme.of(context).textTheme.displaySmall?.copyWith(color: title),
         ),
         AppSpacing.gapXs,
-        Text('Your sales companion', style: TextStyle(color: sub, fontSize: 15)),
+        Text(
+          AppConstants.tagline,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: sub, fontSize: 15),
+        ),
       ],
     );
   }

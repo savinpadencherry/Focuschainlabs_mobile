@@ -1,108 +1,42 @@
 import 'package:get_it/get_it.dart';
 
-import 'config/app_config.dart';
 import 'repository/auth_repository.dart';
-import 'repository/capture_repository.dart';
-import 'repository/client_repository.dart';
+import 'repository/crm_repository.dart';
 import 'repository/firebase_auth_repository.dart';
-import 'repository/lookup_repository.dart';
-import 'repository/meeting_repository.dart';
-import 'services/ai/ai_service.dart';
-import 'services/ai/gemini_ai_service.dart';
-import 'services/ai/mock_ai_service.dart';
+import 'services/api/secona_api.dart';
 import 'services/auth/google_auth_service.dart';
-import 'services/calendar/calendar_service.dart';
-import 'services/calendar/google_calendar_service.dart';
-import 'services/calendar/mock_calendar_service.dart';
-import 'services/crm/github_crm_service.dart';
-import 'services/crm/leads_crm_service.dart';
-import 'services/crm/rest_crm_service.dart';
-import 'services/crm/mock_leads_crm_service.dart';
 import 'services/firebase/analytics_service.dart';
 import 'services/firebase/firebase_bootstrap.dart';
 import 'services/local_store.dart';
 import 'services/navigator_service.dart';
-import 'services/reminders/reminder_service.dart';
-import 'services/tasks/http_trello_service.dart';
-import 'services/tasks/mock_trello_service.dart';
-import 'services/tasks/trello_service.dart';
-import 'services/voice/device_voice_service.dart';
-import 'services/voice/voice_service.dart';
 
-/// Global service locator. Implementations are chosen at startup: Firebase
-/// services activate once [FirebaseBootstrap.ready] is true (config present),
-/// other integrations activate when their `.env` keys are set; otherwise the
-/// offline mocks keep the app fully runnable. Swapping demo ↔ live touches only
-/// this file.
+/// Global service locator.
+///
+/// There are no mock implementations to swap in any more. This app is a client
+/// for one shared CRM, and a demo mode that invents leads would be worse than
+/// an error message: a rep cannot tell seeded data from their real pipeline
+/// until they act on it. When the backend is unreachable the surfaces say so.
 final GetIt app = GetIt.instance;
 
 void initializeGetIt() {
   if (app.isRegistered<NavigatorService>()) return;
   final bool firebase = FirebaseBootstrap.ready;
 
-  // Infra services
   app
     ..registerLazySingleton<NavigatorService>(NavigatorService.new)
     ..registerLazySingleton<LocalStore>(LocalStore.new)
-    ..registerLazySingleton<VoiceService>(DeviceVoiceService.new)
     ..registerLazySingleton<GoogleAuthService>(GoogleAuthService.new)
-    ..registerLazySingleton<ReminderService>(ReminderService.new)
     ..registerLazySingleton<AnalyticsService>(
       () => firebase ? FirebaseAnalyticsService() : const NoopAnalyticsService(),
-    );
-
-  // AI — Gemini when a key is present, else mock.
-  app.registerLazySingleton<AiService>(
-    () => AppConfig.hasGemini ? GeminiAiService() : const MockAiService(),
-  );
-
-  // Calendar — Google Calendar when signed in via Firebase, else mock.
-  app.registerLazySingleton<CalendarService>(
-    () => firebase
-        ? GoogleCalendarService(auth: app<GoogleAuthService>())
-        : const MockCalendarService(),
-  );
-
-  // CRM — Cloud Run REST API when configured, else GitHub repo, else mock.
-  app.registerLazySingleton<LeadsCrmService>(
-    () => AppConfig.hasCloudRunBackend
-        ? RestCrmService()
-        : (AppConfig.hasGithubCrm
-            ? GithubCrmService()
-            : const MockLeadsCrmService()),
-  );
-
-  // Tasks — Trello REST when configured, else mock.
-  app.registerLazySingleton<TrelloService>(
-    () => AppConfig.hasTrello ? HttpTrelloService() : const MockTrelloService(),
-  );
-
-  // Repositories
-  app
+    )
+    ..registerLazySingleton<SeconaApi>(SeconaApi.new)
+    ..registerLazySingleton<CrmRepository>(
+      () => CrmRepository(api: app<SeconaApi>()),
+    )
     ..registerLazySingleton<AuthRepository>(
-      () => firebase
-          ? FirebaseAuthRepository(
-              google: app<GoogleAuthService>(),
-              analytics: app<AnalyticsService>(),
-            )
-          : DemoAuthRepository(store: app<LocalStore>()),
-    )
-    ..registerLazySingleton<ClientRepository>(ClientRepository.new)
-    ..registerLazySingleton<MeetingRepository>(
-      () => MeetingRepository(calendar: app<CalendarService>()),
-    )
-    ..registerLazySingleton<CaptureRepository>(
-      () => CaptureRepository(
-        ai: app<AiService>(),
-        store: app<LocalStore>(),
-        crm: app<LeadsCrmService>(),
-        trello: app<TrelloService>(),
-      ),
-    )
-    ..registerLazySingleton<LookupRepository>(
-      () => LookupRepository(
-        ai: app<AiService>(),
-        clients: app<ClientRepository>(),
+      () => FirebaseAuthRepository(
+        google: app<GoogleAuthService>(),
+        analytics: app<AnalyticsService>(),
       ),
     );
 }

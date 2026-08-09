@@ -180,16 +180,6 @@ class _SignInButtons extends StatelessWidget {
             label: Text(loading ? 'Signing in…' : AppStrings.continueGoogle),
           ),
         ),
-        AppSpacing.vGapMd,
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: loading
-                ? null
-                : () => context.read<AuthBloc>().add(const AuthSignInRequested()),
-            child: const Text(AppStrings.useWorkEmail),
-          ),
-        ),
       ],
     );
   }
