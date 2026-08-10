@@ -14,6 +14,7 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
       : _repository = repository,
         super(const ListingsState()) {
     on<ListingsLoaded>(_onLoaded);
+    on<ListingsIdle>(_onIdle);
     on<ListingsFiltered>(_onFiltered);
     on<ListingsFilterCleared>(_onFilterCleared);
     on<ListingsShared>(_onShared);
@@ -34,6 +35,10 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     } on ApiException catch (e) {
       emit(state.copyWith(status: ListingsStatus.failed, error: e.message));
     }
+  }
+
+  void _onIdle(ListingsIdle event, Emitter<ListingsState> emit) {
+    emit(state.copyWith(status: ListingsStatus.ready));
   }
 
   Future<void> _onFiltered(

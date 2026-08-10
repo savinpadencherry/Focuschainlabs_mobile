@@ -72,7 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
             color: AppColors.green,
             onRefresh: _load,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: <Widget>[
                 _Identity(me: _me, loading: _loading),
                 if (_error.isNotEmpty) ...<Widget>[

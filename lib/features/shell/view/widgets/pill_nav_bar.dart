@@ -20,10 +20,12 @@ class PillNavBar extends StatelessWidget {
     super.key,
     required this.index,
     required this.onSelect,
+    required this.items,
   });
 
   final int index;
   final ValueChanged<int> onSelect;
+  final List<NavItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -47,9 +49,9 @@ class PillNavBar extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              for (int i = 0; i < navDestinations.length; i++)
+              for (int i = 0; i < items.length; i++)
                 _NavPill(
-                  item: navDestinations[i],
+                  item: items[i],
                   selected: i == index,
                   onTap: () => onSelect(i),
                 ),

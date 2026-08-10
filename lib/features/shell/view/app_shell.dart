@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/get.dart';
+import '../../../core/models/listing.dart';
 import '../../../core/repository/crm_repository.dart';
+import '../../../core/services/api/identity_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../listings/bloc/listings_bloc.dart';
@@ -14,12 +16,13 @@ import '../../pipeline/view/pipeline_view.dart';
 import 'nav_destinations.dart';
 import 'widgets/pill_nav_bar.dart';
 
-/// Root authenticated surface: Ona · Pipeline · Listings.
+/// Root authenticated surface.
 ///
-/// The three data blocs live here, and the pages stay alive in an
-/// [IndexedStack]. Switching tabs must not throw away a half-typed Ona thread
-/// or refetch a board the user looked at four seconds ago — on a phone in a
-/// lift that refetch is a spinner and nothing else.
+/// The tab set depends on the tenant. Property inventory is a real-estate
+/// concept, so a B2B SaaS workspace has no Listings surface — showing one is
+/// showing a tool for somebody else's business. The shell therefore resolves
+/// who the user is before it can draw its own navigation, which is why this
+/// loads identity rather than reading it lazily like the headers do.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -29,6 +32,27 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  bool _resolving = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    if (IdentityCache.current != null) {
+      setState(() => _resolving = false);
+      return;
+    }
+    try {
+      IdentityCache.current = await app<CrmRepository>().me();
+    } catch (_) {
+      // Unreachable or not a member. The surfaces report it properly; the
+      // shell just falls back to the tab set that is always valid.
+    }
+    if (mounted) setState(() => _resolving = false);
+  }
 
   void _select(int value) {
     if (value != _index) setState(() => _index = value);
@@ -36,6 +60,15 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_resolving) {
+      return const Scaffold(
+        backgroundColor: AppColors.paper,
+        body: Center(child: CircularProgressIndicator(color: AppColors.green)),
+      );
+    }
+
+    final Me? me = IdentityCache.current;
+    final bool showListings = me?.isRealEstate ?? false;
     final CrmRepository repository = app<CrmRepository>();
 
     return MultiBlocProvider(
@@ -47,57 +80,79 @@ class _AppShellState extends State<AppShell> {
           create: (_) =>
               PipelineBloc(repository: repository)..add(const PipelineLoaded()),
         ),
+        // Provided even when the tab is hidden: Ona answers property questions
+        // for any tenant that has inventory on file, and its listing cards
+        // need this bloc to open a share composer.
         BlocProvider<ListingsBloc>(
-          create: (_) =>
-              ListingsBloc(repository: repository)..add(const ListingsLoaded()),
+          create: (_) => ListingsBloc(repository: repository)
+            ..add(showListings ? const ListingsLoaded() : const ListingsIdle()),
         ),
       ],
-      child: _ShellScaffold(index: _index, onSelect: _select),
+      child: _ShellScaffold(
+        index: _index,
+        onSelect: _select,
+        showListings: showListings,
+      ),
     );
   }
 }
 
 class _ShellScaffold extends StatelessWidget {
-  const _ShellScaffold({required this.index, required this.onSelect});
+  const _ShellScaffold({
+    required this.index,
+    required this.onSelect,
+    required this.showListings,
+  });
 
   final int index;
   final ValueChanged<int> onSelect;
+  final bool showListings;
 
-  /// Kept alive, but only the visible one animates in.
-  ///
-  /// A cross-fade between two IndexedStack children would show both mid-way;
-  /// this instead slides the incoming page a few pixels, which reads as
-  /// "changed surface" without implying a spatial direction the tabs do not
-  /// actually have.
-  Widget get _body => IndexedStack(
-        index: index,
-        children: <Widget>[
-          for (int i = 0; i < 3; i++)
-            _PageFade(
-              visible: i == index,
-              child: const <Widget>[
-                OnaView(),
-                PipelineView(),
-                ListingsView(),
-              ][i],
-            ),
-        ],
-      );
+  List<NavItem> get _items => navDestinationsFor(showListings: showListings);
+
+  /// `num.clamp` returns num, and an index has to be an int.
+  int get _safeIndex {
+    final int last = _items.length - 1;
+    return index < 0 ? 0 : (index > last ? last : index);
+  }
+
+  Widget get _body {
+    final List<Widget> pages = <Widget>[
+      const OnaView(),
+      const PipelineView(),
+      if (showListings) const ListingsView(),
+    ];
+    return IndexedStack(
+      index: _safeIndex,
+      children: <Widget>[
+        for (int i = 0; i < pages.length; i++)
+          _PageFade(visible: i == index, child: pages[i]),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(
       mobile: (_) => Scaffold(
         backgroundColor: AppColors.paper,
-        extendBody: true,
+        // Deliberately NOT extendBody. The nav bar floats visually, but the
+        // body must end above it — with extendBody the composer and the last
+        // list row were drawn underneath it and could not be tapped.
         body: _body,
-        bottomNavigationBar: PillNavBar(index: index, onSelect: onSelect),
+        bottomNavigationBar: PillNavBar(
+          index: _safeIndex,
+          onSelect: onSelect,
+          items: _items,
+        ),
       ),
-      tablet: (_) => _WideShell(index: index, onSelect: onSelect, body: _body),
+      tablet: (_) =>
+          _WideShell(index: _safeIndex, onSelect: onSelect, body: _body, items: _items),
       desktop: (_) => _WideShell(
-        index: index,
+        index: _safeIndex,
         onSelect: onSelect,
         body: _body,
+        items: _items,
         extended: true,
       ),
     );
@@ -132,12 +187,14 @@ class _WideShell extends StatelessWidget {
     required this.index,
     required this.onSelect,
     required this.body,
+    required this.items,
     this.extended = false,
   });
 
   final int index;
   final ValueChanged<int> onSelect;
   final Widget body;
+  final List<NavItem> items;
   final bool extended;
 
   @override
@@ -163,7 +220,7 @@ class _WideShell extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: _RailLeading(extended: extended),
                   ),
-                  destinations: navDestinations
+                  destinations: items
                       .map((NavItem n) => NavigationRailDestination(
                             icon: Icon(n.icon),
                             selectedIcon: Icon(n.selectedIcon),

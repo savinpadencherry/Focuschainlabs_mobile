@@ -3,21 +3,24 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/models/ona.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
-import '../../../shared/widgets/shimmer.dart';
 import '../../../shared/widgets/surface_header.dart';
 import '../bloc/ona_bloc.dart';
 import 'widgets/ona_bubble.dart';
+import 'widgets/ona_landing.dart';
 import 'widgets/ona_mark.dart';
 
 /// Ask Ona.
 ///
-/// Opens with the morning brief rather than a blinking cursor: the brief is
-/// what a rep opens the app for, and an empty box asks them to think of
-/// something before it will help them.
+/// Two states, not one. Before anything is asked it is a landing screen — the
+/// ask box in the middle of the page with the day laid out beneath it. Once a
+/// question is asked it becomes a thread and the box docks to the bottom,
+/// where a chat input belongs. Trying to be both at once is what made the
+/// first version a chat bubble stranded above a screen of empty paper.
 class OnaView extends StatefulWidget {
   const OnaView({super.key});
 
@@ -37,8 +40,6 @@ class _OnaViewState extends State<OnaView> {
   }
 
   void _toBottom() {
-    // After the frame, so the new bubble has been laid out and its height is
-    // known — otherwise this scrolls to where the list ended a frame ago.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
       _scroll.animateTo(
@@ -57,34 +58,61 @@ class _OnaViewState extends State<OnaView> {
     FocusScope.of(context).unfocus();
   }
 
+  /// The opening brief, when that is still all there is.
+  OnaAnswer? _brief(OnaState state) {
+    if (state.turns.length != 1) return null;
+    final List<OnaAnswer> answers = state.turns.first.answers;
+    return answers.isEmpty ? null : answers.first;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
+      // The keyboard is handled per-state: the landing scrolls, the thread
+      // docks its composer above the inset.
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
         child: BlocConsumer<OnaBloc, OnaState>(
-          listener: (BuildContext context, OnaState state) => _toBottom(),
+          listener: (BuildContext context, OnaState state) {
+            if (state.turns.length > 1) _toBottom();
+          },
           builder: (BuildContext context, OnaState state) {
+            // A single turn means nothing has been asked yet — that turn is
+            // the brief the surface opens with.
+            final bool landing = state.turns.length <= 1 && !state.busy;
+
             return Column(
               children: <Widget>[
                 SurfaceHeader(
                   leading: const _OnaLockup(),
-                  trailing: IconButton(
-                    tooltip: 'New thread',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () =>
-                        context.read<OnaBloc>().add(const OnaCleared()),
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                  ),
+                  trailing: state.turns.length > 1
+                      ? IconButton(
+                          tooltip: 'New thread',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () =>
+                              context.read<OnaBloc>().add(const OnaCleared()),
+                          icon: const Icon(Icons.refresh_rounded, size: 20),
+                        )
+                      : null,
                 ),
                 Expanded(
-                  child: state.turns.isEmpty && state.status == OnaStatus.loading
-                      ? const _BriefSkeleton()
-                      : ContentBounds(
-                          child: ListView.builder(
+                  child: ContentBounds(
+                    child: landing
+                        ? OnaLanding(
+                            brief: _brief(state),
+                            composer: _Composer(
+                              controller: _input,
+                              busy: state.busy,
+                              onSend: _send,
+                              elevated: true,
+                            ),
+                            onChip: _send,
+                          )
+                        : ListView.builder(
                             controller: _scroll,
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                             itemCount: state.turns.length,
                             itemBuilder: (BuildContext context, int i) {
                               return OnaBubble(turn: state.turns[i])
@@ -96,14 +124,21 @@ class _OnaViewState extends State<OnaView> {
                                   );
                             },
                           ),
-                        ),
+                  ),
                 ),
-                _Suggestions(onTap: _send),
-                _Composer(
-                  controller: _input,
-                  busy: state.busy,
-                  onSend: _send,
-                ),
+                if (!landing) ...<Widget>[
+                  _ThreadChips(onTap: _send),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                    child: ContentBounds(
+                      child: _Composer(
+                        controller: _input,
+                        busy: state.busy,
+                        onSend: _send,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             );
           },
@@ -113,10 +148,6 @@ class _OnaViewState extends State<OnaView> {
   }
 }
 
-/// The mark plus the wordmark, breathing gently.
-///
-/// A slow pulse on the mark is the only ambient motion in the app — it marks
-/// Ona as the one surface that is a conversation rather than a list.
 class _OnaLockup extends StatelessWidget {
   const _OnaLockup();
 
@@ -124,21 +155,14 @@ class _OnaLockup extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        const OnaMark(size: 32)
-            .animate(onPlay: (AnimationController c) => c.repeat(reverse: true))
-            .scale(
-              begin: const Offset(1, 1),
-              end: const Offset(1.06, 1.06),
-              duration: 2200.ms,
-              curve: Curves.easeInOut,
-            ),
+        const OnaMark(size: 30),
         const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
               AppStrings.onaTitle,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                     height: 1.05,
                   ),
@@ -154,53 +178,9 @@ class _OnaLockup extends StatelessWidget {
   }
 }
 
-/// The brief's shape while it loads.
-class _BriefSkeleton extends StatelessWidget {
-  const _BriefSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Shimmer(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: const <Widget>[
-                SkeletonBar(width: 26, height: 26, radius: 13),
-                SizedBox(width: 10),
-                Expanded(child: SkeletonBar(height: 14)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const SkeletonBar(width: 240),
-            const SizedBox(height: 8),
-            const SkeletonBar(width: 180),
-            const SizedBox(height: 18),
-            Row(
-              children: const <Widget>[
-                Expanded(child: SkeletonBar(height: 66, radius: 14)),
-                SizedBox(width: 8),
-                Expanded(child: SkeletonBar(height: 66, radius: 14)),
-                SizedBox(width: 8),
-                Expanded(child: SkeletonBar(height: 66, radius: 14)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Starter chips.
-///
-/// These carry wording the product wrote, so they take the fast keyword path
-/// server-side and answer instantly. That is why they are sent with
-/// `fromChip: true` and typed text is not.
-class _Suggestions extends StatelessWidget {
-  const _Suggestions({required this.onTap});
+/// Follow-up chips, once a thread is running.
+class _ThreadChips extends StatelessWidget {
+  const _ThreadChips({required this.onTap});
 
   final ValueChanged<String> onTap;
 
@@ -216,23 +196,20 @@ class _Suggestions extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool busy = context.select((OnaBloc b) => b.state.busy);
     return SizedBox(
-      height: 36,
+      height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: <Widget>[
-          for (int i = 0; i < _chips.length; i++)
+          for (final (String label, String prompt) in _chips)
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: TagChip(
-                _chips[i].$1,
+                label,
                 color: AppColors.navy,
                 filled: false,
-                onTap: busy ? null : () => onTap(_chips[i].$2),
-              )
-                  .animate(delay: (120 + i * 60).ms)
-                  .fadeIn(duration: 260.ms)
-                  .slideX(begin: 0.25, curve: Curves.easeOutCubic),
+                onTap: busy ? null : () => onTap(prompt),
+              ),
             ),
         ],
       ),
@@ -240,52 +217,69 @@ class _Suggestions extends StatelessWidget {
   }
 }
 
+/// The ask box.
+///
+/// [elevated] is the landing form: taller, shadowed, and the visual centre of
+/// the screen. The docked form is flatter because on a thread it is a tool,
+/// not the subject.
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
     required this.busy,
     required this.onSend,
+    this.elevated = false,
   });
 
   final TextEditingController controller;
   final bool busy;
   final VoidCallback onSend;
+  final bool elevated;
 
   @override
   Widget build(BuildContext context) {
-    final bool keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return Padding(
-      // Clears the floating nav bar when the keyboard is down, and sits on the
-      // keyboard when it is up.
-      padding: EdgeInsets.fromLTRB(16, 10, 16, keyboardUp ? 12 : 92),
-      child: ContentBounds(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Expanded(
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                decoration: InputDecoration(
-                  hintText: AppStrings.onaHint,
-                  isDense: true,
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  border: _border(AppColors.cardBorder),
-                  enabledBorder: _border(AppColors.cardBorder),
-                  focusedBorder: _border(AppColors.green),
+    return Container(
+      decoration: elevated
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.navy.withValues(alpha: 0.13),
+                  blurRadius: 28,
+                  offset: const Offset(0, 10),
+                  spreadRadius: -8,
                 ),
+              ],
+            )
+          : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          Expanded(
+            child: TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 4,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onSend(),
+              style: TextStyle(fontSize: elevated ? 15.5 : 15),
+              decoration: InputDecoration(
+                hintText: AppStrings.onaHint,
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: elevated ? 18 : 14,
+                ),
+                border: _border(AppColors.cardBorder),
+                enabledBorder: _border(AppColors.cardBorder),
+                focusedBorder: _border(AppColors.green),
               ),
             ),
-            const SizedBox(width: 8),
-            _SendButton(busy: busy, onSend: onSend),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          _SendButton(busy: busy, onSend: onSend, size: elevated ? 52 : 46),
+        ],
       ),
     );
   }
@@ -297,10 +291,15 @@ class _Composer extends StatelessWidget {
 }
 
 class _SendButton extends StatelessWidget {
-  const _SendButton({required this.busy, required this.onSend});
+  const _SendButton({
+    required this.busy,
+    required this.onSend,
+    this.size = 46,
+  });
 
   final bool busy;
   final VoidCallback onSend;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -309,8 +308,8 @@ class _SendButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
         curve: Curves.easeOutCubic,
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: busy
@@ -340,9 +339,9 @@ class _SendButton extends StatelessWidget {
                     color: Colors.white,
                   ),
                 )
-              : const Icon(
+              : Icon(
                   Icons.arrow_upward_rounded,
-                  size: 21,
+                  size: size * 0.44,
                   color: Colors.white,
                 ),
         ),

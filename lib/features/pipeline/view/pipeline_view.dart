@@ -290,7 +290,7 @@ class _Body extends StatelessWidget {
           context.read<PipelineBloc>().add(const PipelineLoaded()),
       child: ContentBounds(
         child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           itemCount: leads.length,
           separatorBuilder: (_, __) => AppSpacing.vGapMd,
           itemBuilder: (BuildContext context, int i) {

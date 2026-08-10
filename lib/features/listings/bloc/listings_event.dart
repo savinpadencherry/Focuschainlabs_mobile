@@ -11,6 +11,14 @@ class ListingsLoaded extends ListingsEvent {
   const ListingsLoaded();
 }
 
+/// Stand down: this tenant has no Listings surface, so there is nothing to
+/// fetch. The bloc still exists because Ona can answer a property question for
+/// any tenant that has inventory on file, and its cards need somewhere to
+/// record a share.
+class ListingsIdle extends ListingsEvent {
+  const ListingsIdle();
+}
+
 class ListingsFiltered extends ListingsEvent {
   const ListingsFiltered(this.filters);
 

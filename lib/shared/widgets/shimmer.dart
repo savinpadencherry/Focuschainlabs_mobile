@@ -146,7 +146,7 @@ class SkeletonList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Shimmer(
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         physics: const NeverScrollableScrollPhysics(),
         itemCount: count,
         separatorBuilder: (_, __) => const SizedBox(height: 12),

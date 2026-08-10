@@ -14,12 +14,23 @@ import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/surface_header.dart';
 import '../bloc/listings_bloc.dart';
 import 'widgets/listing_card.dart';
+import 'widgets/listing_deck.dart';
 import 'widgets/listing_sheet.dart';
 import 'widgets/share_sheet.dart';
 
 /// Inventory search.
-class ListingsView extends StatelessWidget {
+class ListingsView extends StatefulWidget {
   const ListingsView({super.key});
+
+  @override
+  State<ListingsView> createState() => _ListingsViewState();
+}
+
+class _ListingsViewState extends State<ListingsView> {
+  /// Swipe is the default: flicking through inventory for a client is one
+  /// decision per property. The list stays one tap away for when the job is
+  /// "find that specific flat in Hoskote" rather than "show me what we have".
+  bool _deck = true;
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +68,14 @@ class ListingsView extends StatelessWidget {
                 SurfaceHeader(
                   title: AppStrings.listingsTitle,
                   subtitle: _subtitle(state),
+                  trailing: _ViewToggle(
+                    deck: _deck,
+                    onChanged: (bool v) => setState(() => _deck = v),
+                  ),
                 ),
                 _Controls(state: state),
                 RefreshBar(visible: state.status == ListingsStatus.refreshing),
-                Expanded(child: _Body(state: state)),
+                Expanded(child: _Body(state: state, deck: _deck)),
               ],
             );
           },
@@ -74,6 +89,82 @@ class ListingsView extends StatelessWidget {
     final int shown = state.results.listings.length;
     if (shown == state.results.total) return '$shown properties';
     return '$shown of ${state.results.total} properties';
+  }
+}
+
+/// Swipe deck or list. Two modes because the surface answers two different
+/// questions: "show me what we have" and "find that specific flat".
+class _ViewToggle extends StatelessWidget {
+  const _ViewToggle({required this.deck, required this.onChanged});
+
+  final bool deck;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _ToggleIcon(
+            icon: Icons.style_rounded,
+            selected: deck,
+            onTap: () => onChanged(true),
+            tooltip: 'Swipe through',
+          ),
+          _ToggleIcon(
+            icon: Icons.view_list_rounded,
+            selected: !deck,
+            onTap: () => onChanged(false),
+            tooltip: 'List',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleIcon extends StatelessWidget {
+  const _ToggleIcon({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+          ),
+          child: Icon(
+            icon,
+            size: 17,
+            color: selected ? AppColors.ink : AppColors.inkMuted,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -150,9 +241,10 @@ class _ControlsState extends State<_Controls> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.state});
+  const _Body({required this.state, required this.deck});
 
   final ListingsState state;
+  final bool deck;
 
   @override
   Widget build(BuildContext context) {
@@ -168,13 +260,21 @@ class _Body extends StatelessWidget {
     final List<Listing> items = state.results.listings;
     if (items.isEmpty) return _NoMatch(state: state);
 
+    if (deck) {
+      return ListingDeck(
+        listings: items,
+        onOpen: (Listing l) => ListingSheet.open(context, l),
+        onShare: (Listing l) => ShareSheet.open(context, l),
+      );
+    }
+
     return RefreshIndicator(
       color: AppColors.green,
       onRefresh: () async =>
           context.read<ListingsBloc>().add(const ListingsLoaded()),
       child: ContentBounds(
         child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           itemCount: items.length,
           separatorBuilder: (_, __) => AppSpacing.vGapMd,
           itemBuilder: (BuildContext context, int i) {

@@ -236,6 +236,7 @@ class Me extends Equatable {
     required this.picture,
     required this.organizationId,
     required this.organizationName,
+    required this.vertical,
     required this.role,
     required this.isAdmin,
     required this.canDistributeListings,
@@ -249,6 +250,7 @@ class Me extends Equatable {
       picture: asString(json['picture']),
       organizationId: asString(json['organization_id']),
       organizationName: asString(org['name']),
+      vertical: asString(org['vertical']),
       role: asString(json['role']),
       isAdmin: json['is_admin'] == true,
       canDistributeListings: json['can_distribute_listings'] == true,
@@ -260,9 +262,20 @@ class Me extends Equatable {
   final String picture;
   final String organizationId;
   final String organizationName;
+
+  /// `real_estate` or `b2b_saas`. Decides whether property inventory is a
+  /// thing this tenant has at all.
+  final String vertical;
   final String role;
   final bool isAdmin;
   final bool canDistributeListings;
+
+  /// Whether this tenant deals in property.
+  ///
+  /// A B2B SaaS tenant has no inventory, so the Listings surface is not a
+  /// smaller version of itself for them — it is a surface about someone
+  /// else's business.
+  bool get isRealEstate => vertical == 'real_estate';
 
   String get initials {
     final List<String> parts = name.trim().split(RegExp(r'\s+'))
