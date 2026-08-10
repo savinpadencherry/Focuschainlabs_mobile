@@ -16,6 +16,7 @@ class Listing extends Equatable {
     required this.propertyType,
     required this.locality,
     required this.city,
+    required this.price,
     required this.priceValue,
     required this.priceFmt,
     required this.priceNegotiable,
@@ -49,6 +50,7 @@ class Listing extends Equatable {
         propertyType: asString(json['property_type']),
         locality: asString(json['locality']),
         city: asString(json['city']),
+        price: asString(json['price']),
         priceValue: asDouble(json['price_value']),
         priceFmt: asString(json['price_fmt']),
         priceNegotiable: json['price_negotiable'] == true,
@@ -81,6 +83,11 @@ class Listing extends Equatable {
   final String propertyType;
   final String locality;
   final String city;
+
+  /// As typed ("3.3 Cr"). [priceValue] is the parsed number search filters on,
+  /// and [priceFmt] is what to print — this one exists so an edit form can
+  /// show what someone actually wrote.
+  final String price;
   final double priceValue;
   final String priceFmt;
   final bool priceNegotiable;

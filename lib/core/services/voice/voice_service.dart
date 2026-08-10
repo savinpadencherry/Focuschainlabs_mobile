@@ -52,11 +52,11 @@ class VoiceService {
         partialResults: true,
         cancelOnError: true,
         listenMode: ListenMode.dictation,
+        // Long enough for a whole thought, and a pause long enough that
+        // thinking mid-sentence does not end the recording.
+        listenFor: const Duration(minutes: 2),
+        pauseFor: const Duration(seconds: 4),
       ),
-      // Long enough for a whole thought, and a pause long enough that thinking
-      // mid-sentence does not end the recording.
-      listenFor: const Duration(minutes: 2),
-      pauseFor: const Duration(seconds: 4),
     );
     return true;
   }
