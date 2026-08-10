@@ -14,18 +14,7 @@ class NavItem {
   final IconData selectedIcon;
 }
 
-/// The tab set for a tenant.
-///
-/// Listings only exists for a real-estate workspace — a B2B SaaS tenant has no
-/// property inventory, and a tab that opens an empty tool about someone else's
-/// business is worse than one tab fewer.
-List<NavItem> navDestinationsFor({required bool showListings}) => <NavItem>[
-      navDestinations[0],
-      navDestinations[1],
-      if (showListings) navDestinations[2],
-    ];
-
-/// The full set, in the order a day runs: ask what is waiting, work the
+/// The three surfaces, in the order a day runs: ask what is waiting, work the
 /// pipeline, find a property.
 ///
 /// Profile is deliberately not here. It is somewhere you go once a month, and

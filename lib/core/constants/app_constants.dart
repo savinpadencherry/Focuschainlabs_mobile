@@ -1,9 +1,9 @@
 /// App-wide constant values.
 abstract final class AppConstants {
-  static const String appName = 'Secona';
+  static const String appName = 'Ona';
   static const String companyName = 'FocusChain Labs';
-  static const String tagline = 'Your real-estate desk, in your pocket';
-  static const String appVersion = '1.0.0';
+  static const String tagline = 'Your desk, in your pocket';
+  static const String appVersion = '1.1.0';
 
   /// How long a surface waits before a background refresh is considered stale
   /// enough to redo on resume. The pipeline moves in minutes, not seconds.

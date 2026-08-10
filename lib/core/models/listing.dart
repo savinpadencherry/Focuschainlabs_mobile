@@ -228,6 +228,27 @@ class ListingFilters extends Equatable {
       <Object?>[query, locality, propertyType, bhk, status, minPrice, maxPrice];
 }
 
+/// One of the canned questions about a property.
+///
+/// A closed list, not free text: every answer is grounded in a query the
+/// server runs, and a question outside the list would have nothing to ground
+/// it in.
+class ListingQuestion extends Equatable {
+  const ListingQuestion({required this.id, required this.label});
+
+  factory ListingQuestion.fromJson(Map<String, dynamic> json) =>
+      ListingQuestion(
+        id: asString(json['id']),
+        label: asString(json['label']),
+      );
+
+  final String id;
+  final String label;
+
+  @override
+  List<Object?> get props => <Object?>[id, label];
+}
+
 /// The signed-in user as the CRM sees them.
 class Me extends Equatable {
   const Me({

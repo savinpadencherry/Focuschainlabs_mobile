@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
 import '../../../pipeline/bloc/pipeline_bloc.dart';
 import '../../bloc/listings_bloc.dart';
+import 'listing_qa.dart';
 import 'share_sheet.dart';
 
 /// The full property record, and the two things to do with it: share it, or
@@ -41,7 +42,13 @@ class ListingSheet extends StatelessWidget {
       ),
     );
 
-    if (share == true && context.mounted) ShareSheet.open(context, listing);
+    if (share == true && context.mounted) {
+      ShareSheet.open(context, listing);
+    } else if (share == false) {
+      // Popped by the edit flow. Re-read inventory so the card behind shows
+      // the new price rather than the one that was just replaced.
+      listings.add(const ListingsLoaded());
+    }
   }
 
   @override
@@ -107,6 +114,8 @@ class ListingSheet extends StatelessWidget {
                   ],
                 ),
                 AppSpacing.vGapLg,
+                ListingQa(listing: listing),
+                AppSpacing.vGapLg,
                 _Specs(listing: listing),
                 if (listing.description.isNotEmpty) ...<Widget>[
                   AppSpacing.vGapLg,
@@ -169,13 +178,34 @@ class ListingSheet extends StatelessWidget {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.send_rounded, size: 18),
-                  label: const Text('Share with a lead'),
-                ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final Listing? stored =
+                            await ListingEditSheet.open(context, listing);
+                        if (stored != null && context.mounted) {
+                          // Pop with `false`: the caller reloads inventory
+                          // rather than this sheet showing a stale record next
+                          // to a price that has just changed.
+                          Navigator.pop(context, false);
+                        }
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 17),
+                      label: const Text('Edit'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(context, true),
+                      icon: const Icon(Icons.send_rounded, size: 18),
+                      label: const Text('Share with a lead'),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

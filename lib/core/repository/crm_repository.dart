@@ -98,6 +98,33 @@ class CrmRepository {
     return asInt(res['recorded']);
   }
 
+  /// Edit a property. Returns it as stored — normalisation rewrites a changed
+  /// price into the numeric field that search actually filters on.
+  Future<Listing> editListing(String id, Map<String, dynamic> changes) async {
+    final Map<String, dynamic> res = await _api.post(
+      '/api/listings/$id/edit',
+      body: <String, dynamic>{'changes': changes},
+    );
+    return Listing.fromJson(asMap(res['listing']));
+  }
+
+  /// The questions a rep gets asked while standing in a property.
+  Future<List<ListingQuestion>> listingQuestions(String id) async {
+    final Map<String, dynamic> res =
+        await _api.get('/api/listings/$id/questions');
+    return asMaps(res['questions']).map(ListingQuestion.fromJson).toList();
+  }
+
+  /// Answer one, from the database. The server computes the facts in SQL and
+  /// gives the model only those, so the number in the answer is a real number.
+  Future<String> askAboutListing(String id, String questionId) async {
+    final Map<String, dynamic> res = await _api.post(
+      '/api/listings/$id/ask',
+      body: <String, dynamic>{'question_id': questionId},
+    );
+    return asString(res['answer']);
+  }
+
   // ── Ona ─────────────────────────────────────────────────────────────────────
 
   /// Ask Ona one thing.

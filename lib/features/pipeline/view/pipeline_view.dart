@@ -13,8 +13,8 @@ import '../../../shared/widgets/shimmer.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/surface_header.dart';
 import '../bloc/pipeline_bloc.dart';
+import 'lead_chat_view.dart';
 import 'widgets/lead_card.dart';
-import 'widgets/lead_sheet.dart';
 
 /// The pipeline board.
 ///
@@ -296,7 +296,7 @@ class _Body extends StatelessWidget {
           itemBuilder: (BuildContext context, int i) {
             return LeadCard(
               lead: leads[i],
-              onTap: () => LeadSheet.open(context, leads[i].id),
+              onTap: () => LeadChatView.open(context, leads[i].id),
             )
                 // Staggered, and capped: past the eighth card the delay would
                 // outlast the scroll and cards would fade in under the thumb.
