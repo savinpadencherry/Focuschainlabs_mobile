@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:focuschainlabs_mobile/app/app.dart';
+import 'package:focuschainlabs_mobile/core/constants/app_constants.dart';
 import 'package:focuschainlabs_mobile/core/get.dart';
 
 void main() {
@@ -16,7 +17,9 @@ void main() {
     // indeterminate progress indicator that never settles).
     await tester.pump();
 
-    expect(find.text('Secona'), findsWidgets);
+    // Asserted through the constant rather than a literal: the last rename
+    // broke this test and not the app, which is the wrong way round.
+    expect(find.text(AppConstants.appName), findsWidgets);
 
     // Flush the auth gate's startup timer and settle the transition so no
     // timer is left pending at teardown.

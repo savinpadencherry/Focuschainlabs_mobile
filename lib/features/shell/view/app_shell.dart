@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/get.dart';
 import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/identity_cache.dart';
@@ -303,7 +304,7 @@ class _RailLeading extends StatelessWidget {
         if (extended) ...<Widget>[
           const SizedBox(width: 10),
           const Text(
-            'Secona',
+            AppConstants.appName,
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
           ),
         ],
