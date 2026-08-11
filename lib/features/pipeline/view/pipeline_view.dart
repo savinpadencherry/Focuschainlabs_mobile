@@ -172,7 +172,7 @@ class _StageFilter extends StatelessWidget {
             onTap: () =>
                 context.read<PipelineBloc>().add(const PipelineStageFiltered(null)),
           ),
-          for (final Stage s in Stage.values) ...<Widget>[
+          for (final Stage s in state.board.visibleStages) ...<Widget>[
             const SizedBox(width: 6),
             _FilterPill(
               label: s.label,

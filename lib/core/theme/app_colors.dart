@@ -1,62 +1,82 @@
 import 'package:flutter/material.dart';
 
-/// Mr. Rex palette — aligned to the FocusChain Labs website: warm "paper"
-/// surfaces, deep navy ink, and an emerald-green spark, with a dark navy hero.
-/// Reference every colour decision here so re-theming stays a one-file job.
+/// The Secona palette, from the brand guidelines.
+///
+/// Ink is a deep violet-black rather than a neutral one, and the surfaces are
+/// tinted the same way — that is what makes the iris read as the brand colour
+/// instead of as a highlight sitting on a grey app. Green is the accent, not
+/// the primary: it marks the live, the confirmed and the affirmative, which is
+/// why it is what a Save button and a "Won" badge are made of.
+///
+/// The token names are unchanged from the previous theme on purpose. They are
+/// used in about forty files, and renaming them would have made this a diff
+/// nobody could review for the thing that actually changed — the colours.
 abstract final class AppColors {
-  // Paper / surfaces (warm cream)
-  static const Color paper = Color(0xFFF7F3EC);
-  static const Color paper2 = Color(0xFFEFEAE0);
-  static const Color paper3 = Color(0xFFE7E1D5);
+  // ── Brand ──────────────────────────────────────────────────────────────────
+  /// Iris. The primary.
+  static const Color iris = Color(0xFF7350D0);
+  static const Color irisDeep = Color(0xFF5B3EA8);
+
+  /// Ona green. The accent.
+  static const Color onaGreen = Color(0xFF5FB800);
+  static const Color onaGreenDeep = Color(0xFF4C9400);
+
+  // ── Surfaces ───────────────────────────────────────────────────────────────
+  static const Color paper = Color(0xFFF6F4FB);
+  static const Color paper2 = Color(0xFFEEEBF7);
+  static const Color paper3 = Color(0xFFE7E3F2);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFF1EDE4);
+  static const Color surfaceMuted = Color(0xFFEEEBF7);
 
-  // Ink / navy text
-  static const Color ink = Color(0xFF0E2138);
-  static const Color inkSoft = Color(0xFF43526A);
-  static const Color inkMuted = Color(0xFF7A8493);
+  // ── Ink ────────────────────────────────────────────────────────────────────
+  static const Color ink = Color(0xFF161026);
+  static const Color inkSoft = Color(0xFF4A4160);
+  static const Color inkMuted = Color(0xFF7C7392);
 
-  // Navy structural
-  static const Color navy = Color(0xFF143C5C);
-  static const Color navyDeep = Color(0xFF0B233A);
-  static const Color hero1 = Color(0xFF061521);
-  static const Color hero2 = Color(0xFF092034);
-  static const Color hero3 = Color(0xFF0B3340);
-  static const Color hero4 = Color(0xFF0A2A29);
+  // ── Structural ─────────────────────────────────────────────────────────────
+  /// `navy` in the old palette. Kept as a name because it is the structural
+  /// non-accent colour across the app; it is iris now.
+  static const Color navy = iris;
+  static const Color navyDeep = irisDeep;
+  static const Color hero1 = Color(0xFF161026);
+  static const Color hero2 = Color(0xFF1E1733);
+  static const Color hero3 = Color(0xFF2A2440);
+  static const Color hero4 = Color(0xFF221A3D);
 
-  // Emerald brand spark
-  static const Color green = Color(0xFF1FA565);
-  static const Color greenDeep = Color(0xFF16804B);
-  static const Color greenBright = Color(0xFF38B96A);
-  static const Color greenSoft = Color(0xFFC9E9D8);
+  // ── Accent ─────────────────────────────────────────────────────────────────
+  static const Color green = onaGreen;
+  static const Color greenDeep = onaGreenDeep;
+  static const Color greenBright = Color(0xFF74D400);
+  static const Color greenSoft = Color(0xFFDCF0C4);
 
-  // Aliases used across the app (kept stable so feature code is untouched)
-  static const Color primary = green;
-  static const Color primaryDark = greenDeep;
-  static const Color accent = green;
+  // ── Aliases used across the app ────────────────────────────────────────────
+  static const Color primary = iris;
+  static const Color primaryDark = irisDeep;
+  static const Color accent = onaGreen;
   static const Color background = paper;
   static const Color textPrimary = ink;
   static const Color textSecondary = inkSoft;
   static const Color textMuted = inkMuted;
-  static const Color cardBorder = Color(0x1A143C5C); // rgba(20,60,92,.10)
-  static const Color cardBorderStrong = Color(0x2E143C5C); // .18
+  static const Color cardBorder = Color(0xFFE7E3F2);
+  static const Color cardBorderStrong = Color(0xFFD8D2ED);
 
-  // Sentiment
-  static const Color positive = Color(0xFF1FA565);
-  static const Color neutral = Color(0xFF64748B);
-  static const Color negative = Color(0xFFDC2626);
-  static const Color atRisk = Color(0xFFEA580C);
+  // ── Semantic ───────────────────────────────────────────────────────────────
+  static const Color positive = onaGreen;
+  static const Color neutral = Color(0xFF7C7392);
+  static const Color negative = Color(0xFFD64545);
+  static const Color atRisk = Color(0xFFE07B39);
 
-  // Gradients
-  static const List<Color> brandGradient = <Color>[Color(0xFF27B978), Color(0xFF0F7A47)];
-  static const List<Color> logoGradient = <Color>[greenBright, greenDeep];
+  // ── Gradients ──────────────────────────────────────────────────────────────
+  /// The mark's own two bars, in the mark's own order.
+  static const List<Color> brandGradient = <Color>[iris, onaGreen];
+  static const List<Color> logoGradient = <Color>[Color(0xFF8A6BE0), irisDeep];
   static const List<Color> heroGradient = <Color>[hero1, hero2, hero3, hero4];
-  static const List<Color> splashGradient = <Color>[hero1, hero2, hero4];
+  static const List<Color> splashGradient = <Color>[hero1, hero2, hero3];
 
-  // Glows / shadows
-  static const Color greenGlow = Color(0x731FA565); // rgba(31,165,101,.45)
-  static const Color greenHalo = Color(0x2E1FA565); // rgba(31,165,101,.18)
-  static const Color navyShadow = Color(0x8C143C5C); // rgba(20,60,92,.55)
+  // ── Glows / shadows ────────────────────────────────────────────────────────
+  static const Color greenGlow = Color(0x735FB800);
+  static const Color greenHalo = Color(0x2E5FB800);
+  static const Color navyShadow = Color(0x8C7350D0);
 
   /// Sentiment value (extraction schema) → colour.
   static Color sentiment(String value) {

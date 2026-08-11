@@ -6,17 +6,26 @@ import '../../core/theme/app_spacing.dart';
 
 /// Colours for the pipeline stages.
 ///
-/// Deliberately a cool ramp for the open stages — new to proposal reads as
-/// progress, not as escalating alarm — with green and grey reserved for the
-/// two terminal outcomes.
-Color stageColor(Stage stage) => switch (stage) {
-      Stage.newLead => const Color(0xFF6B8CAE),
-      Stage.contacted => const Color(0xFF4A7BA7),
-      Stage.qualified => const Color(0xFF2E6DA4),
-      Stage.proposal => const Color(0xFF7B5EA7),
-      Stage.won => AppColors.green,
-      Stage.lost => AppColors.inkMuted,
-    };
+/// A ramp that deepens towards iris as a lead advances, so the board reads as
+/// progress rather than as escalating alarm, with green and grey reserved for
+/// the two terminal outcomes. Keyed by name rather than by enum because the
+/// stage list comes from the server — a tenant that adds a stage gets the
+/// fallback rather than a crash.
+const Map<String, Color> _stageColors = <String, Color>{
+  'new': Color(0xFF9A93B8),
+  'contacted': Color(0xFF8779C9),
+  'interested': Color(0xFF7350D0),
+  'site_visits': Color(0xFF6340BE),
+  'offer': Color(0xFF5B3EA8),
+  'negotiation': Color(0xFF4A3391),
+  'agreement': Color(0xFF3D2A78),
+  'closed': AppColors.green,
+  'won': AppColors.green,
+  'lost': AppColors.inkMuted,
+};
+
+Color stageColor(Stage stage) =>
+    _stageColors[stage.key] ?? AppColors.inkMuted;
 
 Color riskColor(RiskLevel risk) => switch (risk) {
       RiskLevel.healthy => AppColors.green,
@@ -113,9 +122,9 @@ class StageChip extends StatelessWidget {
       color: stageColor(stage),
       onTap: onTap,
       icon: stage.isClosed
-          ? (stage == Stage.won
-              ? Icons.check_circle_rounded
-              : Icons.cancel_rounded)
+          ? (stage.key == 'lost'
+              ? Icons.cancel_rounded
+              : Icons.check_circle_rounded)
           : null,
     );
   }

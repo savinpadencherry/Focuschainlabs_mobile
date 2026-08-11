@@ -57,9 +57,10 @@ class _ListingDeckState extends State<ListingDeck> {
     }
 
     final Listing top = widget.listings[_index];
-    final Listing? next = _index + 1 < widget.listings.length
-        ? widget.listings[_index + 1]
-        : null;
+    final List<Listing> behind = widget.listings
+        .skip(_index + 1)
+        .take(2)
+        .toList();
 
     return Column(
       children: <Widget>[
@@ -67,47 +68,55 @@ class _ListingDeckState extends State<ListingDeck> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             child: Stack(
-              alignment: Alignment.center,
+              alignment: Alignment.topCenter,
               // Expand, so each card gets a tight height. The card's layout
               // uses a Spacer to push the price to the bottom, and a Spacer
               // under loose constraints has no space to take.
               fit: StackFit.expand,
               children: <Widget>[
-                // The card behind, peeking, so the deck reads as a stack with
-                // more in it rather than one card that keeps being replaced.
-                if (next != null)
-                  Transform.scale(
-                    scale: 0.94,
-                    child: Transform.translate(
-                      offset: const Offset(0, 14),
+                // The cards behind, each inset from the top and stopping
+                // short of the bottom, so their edges show below the one in
+                // front. The first version scaled a single card down behind
+                // the top one, which hid it completely — a deck that looks
+                // like a single card gives no sense of how much is left.
+                for (int i = behind.length - 1; i >= 0; i--)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: (i + 1) * 10.0,
+                      bottom: _kBottomInset - (i + 1) * 10.0,
+                      left: (i + 1) * 8.0,
+                      right: (i + 1) * 8.0,
+                    ),
+                    child: IgnorePointer(
                       child: Opacity(
-                        opacity: 0.55,
-                        child: IgnorePointer(
-                          child: _DeckCard(listing: next, onOpen: (_) {}),
-                        ),
+                        opacity: i == 0 ? 0.85 : 0.6,
+                        child: _DeckCard(listing: behind[i], onOpen: (_) {}),
                       ),
                     ),
                   ),
-                Dismissible(
-                  key: ValueKey<String>(top.id),
-                  direction: DismissDirection.horizontal,
-                  onDismissed: (DismissDirection d) {
-                    _advance();
-                    if (d == DismissDirection.startToEnd) widget.onShare(top);
-                  },
-                  background: const _SwipeHint(
-                    label: 'Share',
-                    icon: Icons.send_rounded,
-                    color: AppColors.green,
-                    alignment: Alignment.centerLeft,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: _kBottomInset),
+                  child: Dismissible(
+                    key: ValueKey<String>(top.id),
+                    direction: DismissDirection.horizontal,
+                    onDismissed: (DismissDirection d) {
+                      _advance();
+                      if (d == DismissDirection.startToEnd) widget.onShare(top);
+                    },
+                    background: const _SwipeHint(
+                      label: 'Share',
+                      icon: Icons.send_rounded,
+                      color: AppColors.green,
+                      alignment: Alignment.centerLeft,
+                    ),
+                    secondaryBackground: const _SwipeHint(
+                      label: 'Pass',
+                      icon: Icons.close_rounded,
+                      color: AppColors.inkMuted,
+                      alignment: Alignment.centerRight,
+                    ),
+                    child: _DeckCard(listing: top, onOpen: widget.onOpen),
                   ),
-                  secondaryBackground: const _SwipeHint(
-                    label: 'Pass',
-                    icon: Icons.close_rounded,
-                    color: AppColors.inkMuted,
-                    alignment: Alignment.centerRight,
-                  ),
-                  child: _DeckCard(listing: top, onOpen: widget.onOpen),
                 ),
               ],
             ),
@@ -116,6 +125,7 @@ class _ListingDeckState extends State<ListingDeck> {
         _Controls(
           position: _index + 1,
           total: widget.listings.length,
+          remaining: widget.listings.length - _index - 1,
           onPass: _advance,
           onShare: () {
             widget.onShare(top);
@@ -126,6 +136,9 @@ class _ListingDeckState extends State<ListingDeck> {
     );
   }
 }
+
+/// How much room the stack leaves below the front card for the ones behind.
+const double _kBottomInset = 26;
 
 class _DeckCard extends StatelessWidget {
   const _DeckCard({required this.listing, required this.onOpen});
@@ -329,12 +342,14 @@ class _Controls extends StatelessWidget {
   const _Controls({
     required this.position,
     required this.total,
+    required this.remaining,
     required this.onPass,
     required this.onShare,
   });
 
   final int position;
   final int total;
+  final int remaining;
   final VoidCallback onPass;
   final VoidCallback onShare;
 
@@ -365,7 +380,9 @@ class _Controls extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '$position of $total',
+            remaining > 0
+                ? '$position of $total · $remaining more'
+                : '$position of $total · last one',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

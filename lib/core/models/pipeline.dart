@@ -18,29 +18,49 @@ List<Map<String, dynamic>> asMaps(dynamic v) => v is List
     ? v.whereType<Map<String, dynamic>>().toList()
     : <Map<String, dynamic>>[];
 
-/// A pipeline stage. Mirrors the server's `STAGES`, which mirrors the database.
-enum Stage {
-  newLead('new', 'New'),
-  contacted('contacted', 'Contacted'),
-  qualified('qualified', 'Qualified'),
-  proposal('proposal', 'Proposal'),
-  won('won', 'Won'),
-  lost('lost', 'Lost');
+/// A pipeline stage.
+///
+/// Not an enum. The stage list belongs to the CRM — new, contacted,
+/// interested, site_visits, offer, negotiation, agreement, closed — and it is
+/// sent with the board rather than restated here. The enum this replaces knew
+/// six stages, two of which (`qualified`, `proposal`) are not stages at all
+/// but legacy aliases, and it silently rendered everything it did not
+/// recognise as "New". A lead at Site Visits therefore read as a New lead on
+/// the phone and as Site Visits in the browser.
+///
+/// The label comes from the server too, so the two surfaces cannot disagree
+/// about what `site_visits` is called.
+class Stage extends Equatable {
+  const Stage({required this.key, required this.label});
 
-  const Stage(this.key, this.label);
+  factory Stage.fromJson(Map<String, dynamic> json) => Stage(
+        key: asString(json['key']),
+        label: asString(json['label']),
+      );
+
+  /// For a lead, whose payload carries the pair inline.
+  factory Stage.of(String key, String label) => Stage(
+        key: key.toLowerCase(),
+        label: label.isNotEmpty ? label : _titleCase(key),
+      );
 
   final String key;
   final String label;
 
-  static Stage from(String key) => Stage.values.firstWhere(
-        (Stage s) => s.key == key.toLowerCase(),
-        orElse: () => Stage.newLead,
-      );
+  static String _titleCase(String key) {
+    if (key.isEmpty) return 'New Lead';
+    return key
+        .split(RegExp(r'[_\s]+'))
+        .where((String w) => w.isNotEmpty)
+        .map((String w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
 
-  bool get isClosed => this == Stage.won || this == Stage.lost;
+  /// A finished outcome rather than a step on the way.
+  bool get isClosed => const <String>{'won', 'lost', 'closed'}.contains(key);
 
-  /// The stages a board shows as columns — closed deals are a separate group.
-  static List<Stage> get open => <Stage>[newLead, contacted, qualified, proposal];
+  @override
+  List<Object?> get props => <Object?>[key];
 }
 
 /// How much attention a lead needs, as scored by `rex.intelligence`.
@@ -145,7 +165,7 @@ class Lead extends Equatable {
         company: asString(json['company']),
         email: asString(json['email']),
         phone: asString(json['phone']),
-        stage: Stage.from(asString(json['stage'])),
+        stage: Stage.of(asString(json['stage']), asString(json['stage_label'])),
         owner: asString(json['owner']),
         value: asDouble(json['value']),
         valueFmt: asString(json['value_fmt']),
@@ -248,18 +268,36 @@ class PipelineStats extends Equatable {
 
 /// The whole board in one object.
 class PipelineBoard extends Equatable {
-  const PipelineBoard({required this.stats, required this.leads});
+  const PipelineBoard({
+    required this.stats,
+    required this.leads,
+    required this.stages,
+  });
 
   factory PipelineBoard.fromJson(Map<String, dynamic> json) => PipelineBoard(
         stats: PipelineStats.fromJson(asMap(json['stats'])),
         leads: asMaps(json['leads']).map(Lead.fromJson).toList(),
+        stages: asMaps(json['stages']).map(Stage.fromJson).toList(),
       );
 
-  static const PipelineBoard empty =
-      PipelineBoard(stats: PipelineStats.empty, leads: <Lead>[]);
+  static const PipelineBoard empty = PipelineBoard(
+    stats: PipelineStats.empty,
+    leads: <Lead>[],
+    stages: <Stage>[],
+  );
 
   final PipelineStats stats;
   final List<Lead> leads;
+
+  /// The tenant's stage list, in board order, as the server defines it.
+  final List<Stage> stages;
+
+  /// Stages worth showing a chip for: the open ones, plus any closed stage
+  /// that actually has leads in it. A pipeline of nine leads should not carry
+  /// four empty chips for stages this org never uses.
+  List<Stage> get visibleStages => stages
+      .where((Stage s) => !s.isClosed || countIn(s) > 0)
+      .toList();
 
   List<Lead> inStage(Stage stage) =>
       leads.where((Lead l) => l.stage == stage).toList();
@@ -267,5 +305,5 @@ class PipelineBoard extends Equatable {
   int countIn(Stage stage) => leads.where((Lead l) => l.stage == stage).length;
 
   @override
-  List<Object?> get props => <Object?>[stats, leads];
+  List<Object?> get props => <Object?>[stats, leads, stages];
 }

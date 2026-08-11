@@ -3,43 +3,51 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
-/// Typography matching the website: Inter Tight for display/headings, Inter for
-/// body, and JetBrains Mono for technical "eyebrow" labels. google_fonts falls
-/// back to the platform font if the web font can't be fetched (offline-safe).
+/// Typography from the Secona brand guidelines: Fraunces for display and
+/// headings, Inter for body, JetBrains Mono for the technical "eyebrow" labels.
+///
+/// Fraunces is a serif, and serif headings on a phone need less negative
+/// tracking than the grotesque they replace — the letterforms already carry
+/// the weight. The tightening below is roughly half what the old Inter Tight
+/// headings used for that reason.
+///
+/// google_fonts falls back to the platform font when a web font cannot be
+/// fetched, so a first launch on a bad connection renders in the system face
+/// rather than not at all.
 abstract final class AppTypography {
   static TextTheme textTheme(TextTheme base) {
-    final TextTheme display = GoogleFonts.interTightTextTheme(base);
+    final TextTheme display = GoogleFonts.frauncesTextTheme(base);
     final TextTheme body = GoogleFonts.interTextTheme(base);
 
     return base.copyWith(
       displayLarge: display.displayLarge?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -1.8,
+        letterSpacing: -0.9,
         color: AppColors.ink,
       ),
       displayMedium: display.displayMedium?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -1.5,
+        letterSpacing: -0.8,
         color: AppColors.ink,
       ),
       displaySmall: display.displaySmall?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -1.3,
+        letterSpacing: -0.7,
         color: AppColors.ink,
       ),
       headlineMedium: display.headlineMedium?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -0.9,
+        letterSpacing: -0.5,
         color: AppColors.ink,
       ),
       headlineSmall: display.headlineSmall?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -0.6,
+        letterSpacing: -0.35,
         color: AppColors.ink,
       ),
       titleLarge: display.titleLarge?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.4,
+        letterSpacing: -0.25,
         color: AppColors.ink,
       ),
       titleMedium: body.titleMedium?.copyWith(

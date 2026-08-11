@@ -296,21 +296,29 @@ class _StageMover extends StatelessWidget {
       children: <Widget>[
         Text('Stage', style: Theme.of(context).textTheme.labelLarge),
         AppSpacing.vGapSm,
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: <Widget>[
-            for (final Stage s in Stage.values)
-              if (s == lead.stage)
-                StageChip(s)
-              else
-                TagChip(
-                  s.label,
-                  color: stageColor(s),
-                  filled: false,
-                  onTap: () => _move(context, s),
-                ),
-          ],
+        Builder(
+          builder: (BuildContext context) {
+            // Offered from the board's own stage list, so this can never
+            // present a stage the CRM would refuse to store.
+            final List<Stage> stages =
+                context.watch<PipelineBloc>().state.board.stages;
+            return Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: <Widget>[
+                for (final Stage s in stages)
+                  if (s == lead.stage)
+                    StageChip(s)
+                  else
+                    TagChip(
+                      s.label,
+                      color: stageColor(s),
+                      filled: false,
+                      onTap: () => _move(context, s),
+                    ),
+              ],
+            );
+          },
         ),
       ],
     );
