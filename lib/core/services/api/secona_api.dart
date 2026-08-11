@@ -108,6 +108,16 @@ class SeconaApi {
         ));
   }
 
+  /// An absolute URL on this API, for widgets that fetch bytes themselves.
+  String urlFor(String path) => '$_baseUrl$path';
+
+  /// Headers for such a fetch. Image.network takes these, so a photo behind
+  /// the API's permission check can be rendered without a signed link — and
+  /// signing is exactly what does not work here, since Cloud Run's metadata
+  /// credentials cannot sign an object URL.
+  Future<Map<String, String>> authHeaders() async =>
+      <String, String>{'Authorization': 'Bearer ${await _idToken()}'};
+
   Future<Map<String, String>> _headers({bool json = false}) async {
     return <String, String>{
       'Authorization': 'Bearer ${await _idToken()}',

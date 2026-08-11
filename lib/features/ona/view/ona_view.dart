@@ -139,8 +139,9 @@ class _OnaViewState extends State<OnaView> {
                     hint: AppStrings.onaHint,
                     busy: state.busy,
                     onSend: _sendTyped,
-                    // Clears the floating nav bar.
-                    bottomInset: 88,
+                    // The Scaffold already reserves the nav bar's height, so
+                    // this only needs the ordinary gap.
+                    bottomInset: 12,
                   ),
                 ],
               ],

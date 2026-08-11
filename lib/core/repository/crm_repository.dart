@@ -126,20 +126,6 @@ class CrmRepository {
     return asInt(res['recorded']);
   }
 
-  /// A time-limited link to a property's cover photo, or empty when it has
-  /// none. Signed server-side after the same read check the web app applies,
-  /// so a photo is reachable exactly as long as the viewer is allowed it.
-  Future<String> listingPhoto(String id) async {
-    try {
-      final Map<String, dynamic> res =
-          await _api.get('/api/listings/$id/photo');
-      return res['ok'] == true ? asString(res['url']) : '';
-    } catch (_) {
-      // A missing photo must never stop a card rendering.
-      return '';
-    }
-  }
-
   /// Edit a property. Returns it as stored — normalisation rewrites a changed
   /// price into the numeric field that search actually filters on.
   Future<Listing> editListing(String id, Map<String, dynamic> changes) async {

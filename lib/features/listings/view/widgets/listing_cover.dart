@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/get.dart';
 import '../../../../core/models/listing.dart';
-import '../../../../core/repository/crm_repository.dart';
+import '../../../../core/services/api/secona_api.dart';
 
 /// The photo at the top of a property card.
 ///
-/// The link is fetched per card and cached for the app's lifetime, because it
-/// is signed and short-lived — it cannot be embedded in the listing payload
-/// without either expiring in a cached list or being minted for every property
-/// on every search, most of which are never looked at.
+/// The bytes come from the API itself rather than from a signed storage link.
+/// Signing needs a key or the IAM signBlob permission, and Cloud Run's
+/// metadata credentials have neither — the first version minted links that
+/// were never valid, which is why these cards were dark boxes. The web app
+/// reads the bytes too, for the same reason.
 ///
 /// Falls back to the typed gradient when a property has no photo, which is
 /// most of them today. A designed placeholder beats a broken image icon, and
@@ -27,16 +28,12 @@ class ListingCover extends StatefulWidget {
   final double height;
   final BorderRadius? borderRadius;
 
-  /// Signed URLs, kept for the session. Cleared on sign-out with the rest of
-  /// the identity state.
-  static final Map<String, String> cache = <String, String>{};
-
   @override
   State<ListingCover> createState() => _ListingCoverState();
 }
 
 class _ListingCoverState extends State<ListingCover> {
-  String _url = '';
+  Map<String, String>? _headers;
   bool _tried = false;
 
   @override
@@ -46,26 +43,22 @@ class _ListingCoverState extends State<ListingCover> {
   }
 
   Future<void> _resolve() async {
-    final String id = widget.listing.id;
-    if (ListingCover.cache.containsKey(id)) {
-      setState(() {
-        _url = ListingCover.cache[id]!;
-        _tried = true;
-      });
-      return;
-    }
-    // Only ask for properties that claim to have one.
+    // Only fetch for properties that claim to have a photo; the rest get the
+    // placeholder without a round trip.
     if (widget.listing.images.isEmpty) {
       setState(() => _tried = true);
       return;
     }
-    final String url = await app<CrmRepository>().listingPhoto(id);
-    ListingCover.cache[id] = url;
-    if (mounted) {
-      setState(() {
-        _url = url;
-        _tried = true;
-      });
+    try {
+      final Map<String, String> headers = await app<SeconaApi>().authHeaders();
+      if (mounted) {
+        setState(() {
+          _headers = headers;
+          _tried = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _tried = true);
     }
   }
 
@@ -79,12 +72,14 @@ class _ListingCoverState extends State<ListingCover> {
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: _url.isEmpty
+        child: _headers == null
             ? _Placeholder(listing: widget.listing, loading: !_tried)
             : Image.network(
-                _url,
+                app<SeconaApi>()
+                    .urlFor('/api/listings/${widget.listing.id}/photo'),
+                headers: _headers,
                 fit: BoxFit.cover,
-                // A signed link can expire while a list is on screen; the
+                // A property whose photo has been removed 404s; the
                 // placeholder is the same one an unphotographed property
                 // gets, so the card never shows a broken-image glyph.
                 errorBuilder: (_, __, ___) =>

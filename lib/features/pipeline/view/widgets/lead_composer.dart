@@ -31,7 +31,8 @@ class LeadComposer extends StatefulWidget {
   final bool busy;
   final ValueChanged<String> onSend;
 
-  /// Extra space under the box — the Ona tab sits above a floating nav bar.
+  /// Extra space under the box, on top of the system inset. Callers that sit
+  /// above their own bar add its height here.
   final double bottomInset;
 
   @override
@@ -86,13 +87,19 @@ class _LeadComposerState extends State<LeadComposer> {
   @override
   Widget build(BuildContext context) {
     final bool keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // The gesture pill or the three-button bar sits under the window, and on a
+    // pushed full-screen route nothing else is reserving that space — the box
+    // was drawn underneath it and the last line of a typed note was covered.
+    // Zero when the keyboard is up, because the keyboard replaces it.
+    final double systemBottom =
+        keyboardUp ? 0 : MediaQuery.viewPaddingOf(context).bottom;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16,
         8,
         16,
-        keyboardUp ? 10 : widget.bottomInset,
+        (keyboardUp ? 10 : widget.bottomInset) + systemBottom,
       ),
       child: ContentBounds(
         maxWidth: Breakpoints.readableMaxWidth,
