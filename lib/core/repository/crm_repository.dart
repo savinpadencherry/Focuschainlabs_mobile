@@ -203,6 +203,25 @@ class CrmRepository {
     );
   }
 
+  /// The 1-tap chips, drawn from this tenant's own localities and leads.
+  ///
+  /// Fetched rather than hard-coded: a fixed list naming one agency's client
+  /// and area was offered to every tenant, so tapping it searched a CRM for
+  /// someone who was never in it. Falls back to the generic set on failure —
+  /// a landing screen with no chips is worse than three plain ones.
+  Future<List<OnaOffer>> suggestions() async {
+    try {
+      final Map<String, dynamic> res = await _api.get('/api/ona/suggestions');
+      return asMaps(res['chips']).map(OnaOffer.fromJson).toList();
+    } catch (_) {
+      return const <OnaOffer>[
+        OnaOffer(label: 'Who needs attention?', prompt: 'Who needs attention?'),
+        OnaOffer(label: 'Deals at risk', prompt: 'Which deals are at risk?'),
+        OnaOffer(label: "Today's briefing", prompt: "Give me today's briefing"),
+      ];
+    }
+  }
+
   /// The morning brief.
   Future<OnaAnswer> briefing() async =>
       OnaAnswer.fromJson(await _api.get('/api/ona/briefing'));

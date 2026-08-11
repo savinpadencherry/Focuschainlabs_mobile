@@ -124,6 +124,16 @@ class OnaAnswer extends Equatable {
   final OnaHandoff? handoff;
   final Map<String, dynamic> raw;
 
+  /// The leads behind a "what follow-ups are due?" answer.
+  ///
+  /// Carried on the answer rather than derived: the server now sends each
+  /// follow-up as a full lead row — budget, area, requirement, score — so the
+  /// same tile can draw it as draws a focus or risk row.
+  List<Map<String, dynamic>> get dueNow =>
+      asMaps(raw['due_now']).isNotEmpty
+          ? asMaps(raw['due_now'])
+          : asMaps(asMap(raw['tasks'])['due_now']);
+
   /// The briefing's sub-sections, when this is a briefing.
   Map<String, dynamic> get morning => asMap(raw['morning']);
   Map<String, dynamic> get tasks => asMap(raw['tasks']);

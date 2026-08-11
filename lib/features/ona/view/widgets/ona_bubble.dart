@@ -11,6 +11,7 @@ import '../../../listings/view/widgets/listing_sheet.dart';
 import '../../../listings/view/widgets/share_sheet.dart';
 import '../../../pipeline/view/lead_hub_view.dart';
 import '../../bloc/ona_bloc.dart';
+import 'ona_lead_tile.dart';
 import 'ona_mark.dart';
 import 'ona_receipt.dart';
 
@@ -154,7 +155,9 @@ class _AnswerBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         if (answer.isBriefing) _Briefing(answer: answer),
-        if (answer.deals.isNotEmpty) _Deals(deals: answer.deals),
+        if (answer.deals.isNotEmpty)
+          _Deals(deals: answer.deals, ranked: answer.intent == 'focus'),
+        if (answer.dueNow.isNotEmpty) _Deals(deals: answer.dueNow),
         if (answer.listings.isNotEmpty) _Listings(listings: answer.listings),
         if (answer.handoff != null) _Handoff(handoff: answer.handoff!),
         // Anything Ona asks must be tappable, or the rep types "sure" and is
@@ -282,12 +285,17 @@ class _Tile extends StatelessWidget {
   }
 }
 
-/// Deals come back from focus/risk/pipeline answers. Each is a lead, so each
-/// opens the lead sheet — the same place the pipeline tab lands.
+/// Every lead in an answer, drawn the one way leads are drawn.
+///
+/// Focus, risk, lead and tasks all arrive as rows of the same shape, so they
+/// all render through the same tile — the alternative, which the web app had
+/// until recently, is the same lead looking like two different things
+/// depending on which question surfaced it.
 class _Deals extends StatelessWidget {
-  const _Deals({required this.deals});
+  const _Deals({required this.deals, this.ranked = false});
 
   final List<Map<String, dynamic>> deals;
+  final bool ranked;
 
   @override
   Widget build(BuildContext context) {
@@ -295,62 +303,8 @@ class _Deals extends StatelessWidget {
       padding: const EdgeInsets.only(top: 10),
       child: Column(
         children: <Widget>[
-          for (final Map<String, dynamic> d in deals.take(5))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: InkWell(
-                onTap: () {
-                  final String id = (d['contact_id'] ?? '').toString();
-                  if (id.isNotEmpty) LeadHubView.open(context, id);
-                },
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child: Container(
-                  padding: const EdgeInsets.all(11),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(color: AppColors.cardBorder),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              (d['company'] ?? d['contact_name'] ?? 'Lead')
-                                  .toString(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            if ((d['stage'] ?? '').toString().isNotEmpty)
-                              Text(
-                                (d['stage'] ?? '').toString(),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                          ],
-                        ),
-                      ),
-                      if ((d['value_fmt'] ?? '').toString().isNotEmpty)
-                        Text(
-                          (d['value_fmt']).toString(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.green,
-                          ),
-                        ),
-                      const SizedBox(width: 6),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: AppColors.inkMuted,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          for (int i = 0; i < deals.length && i < 5; i++)
+            OnaLeadTile(row: deals[i], rank: ranked ? i + 1 : null),
         ],
       ),
     );

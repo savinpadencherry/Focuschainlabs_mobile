@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/get.dart';
 import '../../../../core/models/ona.dart';
 import '../../../../core/models/pipeline.dart';
+import '../../../../core/repository/crm_repository.dart';
 import '../../../../core/services/api/identity_cache.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
-import '../../../pipeline/view/lead_hub_view.dart';
 import '../../bloc/ona_bloc.dart';
+import 'ona_lead_tile.dart';
 import 'ona_mark.dart';
 
 /// The opening screen: a greeting, the ask box, and the day underneath it.
@@ -108,33 +110,59 @@ class _Greeting extends StatelessWidget {
   }
 }
 
-class _Chips extends StatelessWidget {
+/// The 1-tap chips, named after this tenant's own area and leads.
+///
+/// The fixed list this replaces suggested one agency's client and locality to
+/// everybody, so a second agency tapping "Lead Srikant Patra" searched their
+/// CRM for a person who had never been in it.
+class _Chips extends StatefulWidget {
   const _Chips({required this.onChip});
 
   final ValueChanged<String> onChip;
 
-  static const List<(String, String)> _items = <(String, String)>[
-    ('Today', 'Give me today\'s briefing'),
-    ('Follow-ups', 'What follow-ups are due?'),
-    ('At risk', 'Which deals are at risk?'),
-    ('Pipeline', 'Pipeline summary'),
-  ];
+  @override
+  State<_Chips> createState() => _ChipsState();
+}
+
+class _ChipsState extends State<_Chips> {
+  List<OnaOffer> _chips = const <OnaOffer>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<OnaOffer> chips = await app<CrmRepository>().suggestions();
+    if (mounted) setState(() => _chips = chips);
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_chips.isEmpty) return const SizedBox(height: 32);
     final bool busy = context.select((OnaBloc b) => b.state.busy);
-    return Wrap(
-      spacing: 7,
-      runSpacing: 7,
-      alignment: WrapAlignment.center,
+    return Column(
       children: <Widget>[
-        for (final (String label, String prompt) in _items)
-          TagChip(
-            label,
-            color: AppColors.navy,
-            filled: false,
-            onTap: busy ? null : () => onChip(prompt),
-          ),
+        Text(
+          'Try 1-tap search',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 9),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          alignment: WrapAlignment.center,
+          children: <Widget>[
+            for (final OnaOffer c in _chips)
+              TagChip(
+                c.label,
+                color: AppColors.iris,
+                filled: false,
+                onTap: busy ? null : () => widget.onChip(c.prompt),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -266,10 +294,7 @@ class _Section extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 9),
-        for (int i = 0; i < rows.length; i++) ...<Widget>[
-          if (i > 0) const SizedBox(height: 7),
-          _LeadRow(row: rows[i], accent: accent),
-        ],
+        for (final Map<String, dynamic> row in rows) OnaLeadTile(row: row),
         if (more != null) ...<Widget>[
           const SizedBox(height: 8),
           Align(
@@ -286,92 +311,6 @@ class _Section extends StatelessWidget {
         .animate(delay: delayMs.ms)
         .fadeIn(duration: 340.ms)
         .slideY(begin: 0.12, curve: Curves.easeOutCubic);
-  }
-}
-
-/// One lead from the brief. Tapping opens the same sheet the Pipeline tab
-/// opens — one lead has one place it lives.
-class _LeadRow extends StatelessWidget {
-  const _LeadRow({required this.row, required this.accent});
-
-  final Map<String, dynamic> row;
-  final Color accent;
-
-  String get _id => asString(row['contact_id']);
-
-  String get _title {
-    final String company = asString(row['company']);
-    final String name = asString(row['contact_name']);
-    return company.isNotEmpty ? company : (name.isNotEmpty ? name : 'Lead');
-  }
-
-  String get _detail {
-    final String stage = asString(row['stage']);
-    final String reason = asStrings(row['risk_reasons']).isNotEmpty
-        ? asStrings(row['risk_reasons']).first
-        : '';
-    return reason.isNotEmpty ? reason : stage;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _id.isEmpty ? null : () => LeadHubView.open(context, _id),
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 3,
-              height: 30,
-              decoration: BoxDecoration(
-                color: accent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    _title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  if (_detail.isNotEmpty)
-                    Text(
-                      _detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                ],
-              ),
-            ),
-            if (asString(row['value_fmt']).isNotEmpty)
-              Text(
-                asString(row['value_fmt']),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.green,
-                  fontSize: 13,
-                ),
-              ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded,
-                size: 18, color: AppColors.inkMuted),
-          ],
-        ),
-      ),
-    );
   }
 }
 
