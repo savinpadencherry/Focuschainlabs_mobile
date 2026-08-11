@@ -8,7 +8,7 @@ import '../../../../core/services/api/identity_cache.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
-import '../../../pipeline/view/widgets/lead_sheet.dart';
+import '../../../pipeline/view/lead_hub_view.dart';
 import '../../bloc/ona_bloc.dart';
 import 'ona_mark.dart';
 
@@ -316,7 +316,7 @@ class _LeadRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: _id.isEmpty ? null : () => LeadSheet.open(context, _id),
+      onTap: _id.isEmpty ? null : () => LeadHubView.open(context, _id),
       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),

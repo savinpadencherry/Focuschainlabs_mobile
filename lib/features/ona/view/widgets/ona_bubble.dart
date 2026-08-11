@@ -9,7 +9,7 @@ import '../../../../shared/widgets/crm_chips.dart';
 import '../../../listings/view/widgets/listing_card.dart';
 import '../../../listings/view/widgets/listing_sheet.dart';
 import '../../../listings/view/widgets/share_sheet.dart';
-import '../../../pipeline/view/widgets/lead_sheet.dart';
+import '../../../pipeline/view/lead_hub_view.dart';
 import '../../bloc/ona_bloc.dart';
 import 'ona_mark.dart';
 import 'ona_receipt.dart';
@@ -301,7 +301,7 @@ class _Deals extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   final String id = (d['contact_id'] ?? '').toString();
-                  if (id.isNotEmpty) LeadSheet.open(context, id);
+                  if (id.isNotEmpty) LeadHubView.open(context, id);
                 },
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 child: Container(
@@ -427,7 +427,7 @@ class _Handoff extends StatelessWidget {
 
   void _open(BuildContext context) {
     if (handoff.kind == 'lead' && handoff.contactId.isNotEmpty) {
-      LeadSheet.open(context, handoff.contactId);
+      LeadHubView.open(context, handoff.contactId);
       return;
     }
     // Everything else needs a composer that does not exist on this surface

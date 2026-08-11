@@ -4,7 +4,7 @@ import '../../../../core/models/pipeline.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
-import '../../../pipeline/view/widgets/lead_sheet.dart';
+import '../../../pipeline/view/lead_hub_view.dart';
 
 /// What landed in the system, shown after a confirmed write.
 ///
@@ -70,7 +70,7 @@ class OnaReceipt extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => LeadSheet.open(context, lead.id),
+              onPressed: () => LeadHubView.open(context, lead.id),
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
               child: const Text('Open the lead'),
             ),

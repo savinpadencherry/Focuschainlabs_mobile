@@ -5,6 +5,7 @@ import '../../../../core/models/listing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
+import 'listing_cover.dart';
 
 /// A swipeable deck of properties.
 ///
@@ -180,34 +181,40 @@ class _DeckCard extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(22),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(
-                  listing.propertyType.toLowerCase().contains('villa')
-                      ? Icons.villa_outlined
-                      : (listing.propertyType.toLowerCase().contains('plot')
-                          ? Icons.landscape_outlined
-                          : Icons.apartment_rounded),
-                  color: Colors.white.withValues(alpha: 0.92),
-                  size: 30,
-                ),
-                const Spacer(),
-                if (listing.shareCount > 0)
-                  Text(
-                    'Shared ${listing.shareCount}×',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.8),
+            ListingCover(
+              listing: listing,
+              height: 190,
+              // Top corners only — the container clips the bottom ones.
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppSpacing.radiusXl),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+              child: Row(
+                children: <Widget>[
+                  if (listing.shareCount > 0)
+                    Text(
+                      'Shared ${listing.shareCount}×',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
             const Spacer(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
             Text(
               listing.priceFmt,
               style: text.displaySmall?.copyWith(
@@ -287,6 +294,9 @@ class _DeckCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+                ],
+              ),
             ),
           ],
         ),

@@ -5,11 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/models/ona.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
 import '../../../shared/widgets/surface_header.dart';
 import '../bloc/ona_bloc.dart';
+import '../../pipeline/view/widgets/lead_composer.dart';
 import 'widgets/ona_bubble.dart';
 import 'widgets/ona_landing.dart';
 import 'widgets/ona_mark.dart';
@@ -30,12 +30,10 @@ class OnaView extends StatefulWidget {
 
 class _OnaViewState extends State<OnaView> {
   final ScrollController _scroll = ScrollController();
-  final TextEditingController _input = TextEditingController();
 
   @override
   void dispose() {
     _scroll.dispose();
-    _input.dispose();
     super.dispose();
   }
 
@@ -50,11 +48,18 @@ class _OnaViewState extends State<OnaView> {
     });
   }
 
-  void _send([String? chipPrompt]) {
-    final String query = (chipPrompt ?? _input.text).trim();
+  /// Something the user typed. Always goes to the model — the whole reason
+  /// they typed instead of tapping is that no chip covered what they meant.
+  void _sendTyped(String text) => _ask(text, fromChip: false);
+
+  /// A chip. Carries wording the product wrote, so the server may answer it
+  /// from keywords instantly.
+  void _sendChip(String prompt) => _ask(prompt, fromChip: true);
+
+  void _ask(String text, {required bool fromChip}) {
+    final String query = text.trim();
     if (query.isEmpty) return;
-    context.read<OnaBloc>().add(OnaAsked(query, fromChip: chipPrompt != null));
-    _input.clear();
+    context.read<OnaBloc>().add(OnaAsked(query, fromChip: fromChip));
     FocusScope.of(context).unfocus();
   }
 
@@ -102,13 +107,14 @@ class _OnaViewState extends State<OnaView> {
                     child: landing
                         ? OnaLanding(
                             brief: _brief(state),
-                            composer: _Composer(
-                              controller: _input,
+                            composer: LeadComposer(
+                              key: const ValueKey<String>('ona-landing'),
+                              hint: AppStrings.onaHint,
                               busy: state.busy,
-                              onSend: _send,
-                              elevated: true,
+                              onSend: _sendTyped,
+                              bottomInset: 0,
                             ),
-                            onChip: _send,
+                            onChip: _sendChip,
                           )
                         : ListView.builder(
                             controller: _scroll,
@@ -127,16 +133,14 @@ class _OnaViewState extends State<OnaView> {
                   ),
                 ),
                 if (!landing) ...<Widget>[
-                  _ThreadChips(onTap: _send),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-                    child: ContentBounds(
-                      child: _Composer(
-                        controller: _input,
-                        busy: state.busy,
-                        onSend: _send,
-                      ),
-                    ),
+                  _ThreadChips(onTap: _sendChip),
+                  LeadComposer(
+                    key: const ValueKey<String>('ona-thread'),
+                    hint: AppStrings.onaHint,
+                    busy: state.busy,
+                    onSend: _sendTyped,
+                    // Clears the floating nav bar.
+                    bottomInset: 88,
                   ),
                 ],
               ],
@@ -212,139 +216,6 @@ class _ThreadChips extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// The ask box.
-///
-/// [elevated] is the landing form: taller, shadowed, and the visual centre of
-/// the screen. The docked form is flatter because on a thread it is a tool,
-/// not the subject.
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.busy,
-    required this.onSend,
-    this.elevated = false,
-  });
-
-  final TextEditingController controller;
-  final bool busy;
-  final VoidCallback onSend;
-  final bool elevated;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: elevated
-          ? BoxDecoration(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: AppColors.navy.withValues(alpha: 0.13),
-                  blurRadius: 28,
-                  offset: const Offset(0, 10),
-                  spreadRadius: -8,
-                ),
-              ],
-            )
-          : null,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          Expanded(
-            child: TextField(
-              controller: controller,
-              minLines: 1,
-              maxLines: 4,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onSend(),
-              style: TextStyle(fontSize: elevated ? 15.5 : 15),
-              decoration: InputDecoration(
-                hintText: AppStrings.onaHint,
-                isDense: true,
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: elevated ? 18 : 14,
-                ),
-                border: _border(AppColors.cardBorder),
-                enabledBorder: _border(AppColors.cardBorder),
-                focusedBorder: _border(AppColors.green),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _SendButton(busy: busy, onSend: onSend, size: elevated ? 52 : 46),
-        ],
-      ),
-    );
-  }
-
-  static OutlineInputBorder _border(Color color) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        borderSide: BorderSide(color: color),
-      );
-}
-
-class _SendButton extends StatelessWidget {
-  const _SendButton({
-    required this.busy,
-    required this.onSend,
-    this.size = 46,
-  });
-
-  final bool busy;
-  final VoidCallback onSend;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: busy ? null : onSend,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: busy
-                ? <Color>[AppColors.inkMuted, AppColors.inkMuted]
-                : AppColors.logoGradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.circle,
-          boxShadow: busy
-              ? null
-              : <BoxShadow>[
-                  BoxShadow(
-                    color: AppColors.green.withValues(alpha: 0.38),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-        ),
-        child: Center(
-          child: busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Icon(
-                  Icons.arrow_upward_rounded,
-                  size: size * 0.44,
-                  color: Colors.white,
-                ),
-        ),
       ),
     );
   }

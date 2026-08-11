@@ -2,32 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/models/pipeline.dart';
-import '../../../core/services/voice/voice_service.dart';
+import '../../../core/get.dart';
+import '../../../core/models/lead_chat.dart';
+import '../../../core/repository/crm_repository.dart';
+import '../../../core/services/api/secona_api.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
+import '../../../shared/widgets/error_view.dart';
+import '../../ona/view/widgets/ona_mark.dart';
 import '../bloc/pipeline_bloc.dart';
-import 'widgets/lead_sheet.dart';
+import 'widgets/lead_brief_tile.dart';
+import 'widgets/lead_composer.dart';
 
-/// A lead's chat: the timeline, and a microphone to add to it.
+/// Talk to Ona about one lead.
 ///
-/// This is the loop the whole app exists for — walk out of a meeting, hold the
-/// mic, say what happened, confirm, and it is on the record for everyone. The
-/// alternative is typing it later, which means not typing it.
+/// The same thing the web app's lead chat does, from the same brief: the
+/// server builds the lead's context out of every table holding a piece of it
+/// and gives the model only that, so an answer about what was said on a call
+/// quotes the call rather than inventing one.
 ///
-/// Dictation never writes on its own. The transcript lands in the box as
-/// editable text and the rep presses Log; recognisers mishear names and prices,
-/// and a note that silently records the wrong number is worse than no note.
+/// The thread is stored in Postgres, so it is the *same* thread as the one in
+/// the browser. A question asked here is there at the desk, which is the point
+/// — the desktop thread is what a rep reads before phoning.
 class LeadChatView extends StatefulWidget {
   const LeadChatView({super.key, required this.leadId});
 
   final String leadId;
 
   static Future<void> open(BuildContext context, String leadId) {
-    final PipelineBloc bloc = context.read<PipelineBloc>()
-      ..add(PipelineLeadOpened(leadId));
+    final PipelineBloc bloc = context.read<PipelineBloc>();
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider<PipelineBloc>.value(
@@ -43,66 +48,46 @@ class LeadChatView extends StatefulWidget {
 }
 
 class _LeadChatViewState extends State<LeadChatView> {
-  final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
-  final VoiceService _voice = VoiceService();
 
-  bool _listening = false;
-  String _voiceError = '';
+  LeadChatThread? _thread;
+  List<LeadChatMessage> _messages = <LeadChatMessage>[];
+  String _error = '';
+  bool _loading = true;
+  bool _busy = false;
 
-  /// What was in the box before dictation started, so speech appends to a
-  /// half-typed note instead of wiping it.
-  String _base = '';
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
   @override
   void dispose() {
-    _voice.cancel();
-    _input.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  Future<void> _toggleMic() async {
-    if (_listening) {
-      await _voice.stop();
-      setState(() => _listening = false);
-      return;
-    }
-
-    setState(() => _voiceError = '');
-    _base = _input.text.trim();
-
-    final bool started = await _voice.start(
-      onResult: (String text, bool isFinal) {
-        if (!mounted) return;
-        final String joined = _base.isEmpty ? text : '$_base $text';
-        _input.value = TextEditingValue(
-          text: joined,
-          selection: TextSelection.collapsed(offset: joined.length),
-        );
-        if (isFinal) setState(() => _listening = false);
-      },
-    );
-
-    if (!mounted) return;
+  Future<void> _load() async {
     setState(() {
-      _listening = started;
-      _voiceError = started
-          ? ''
-          : 'This phone will not start dictation. Check the microphone '
-              'permission, or type the note instead.';
+      _loading = true;
+      _error = '';
     });
-  }
-
-  Future<void> _log() async {
-    final String note = _input.text.trim();
-    if (note.isEmpty) return;
-    await _voice.cancel();
-    if (!mounted) return;
-    setState(() => _listening = false);
-    context.read<PipelineBloc>().add(PipelineNoteLogged(widget.leadId, note));
-    _input.clear();
-    FocusScope.of(context).unfocus();
+    try {
+      final LeadChatThread t =
+          await app<CrmRepository>().leadThread(widget.leadId);
+      if (mounted) {
+        setState(() {
+          _thread = t;
+          _messages = t.messages;
+        });
+        _toBottom();
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _toBottom() {
@@ -116,97 +101,150 @@ class _LeadChatViewState extends State<LeadChatView> {
     });
   }
 
+  Future<void> _send(String text) async {
+    final String question = text.trim();
+    if (question.isEmpty || _busy) return;
+
+    // The question and a thinking bubble go on screen immediately; the server
+    // stores the real pair and hands them back with their ids.
+    setState(() {
+      _busy = true;
+      _messages = <LeadChatMessage>[
+        ..._messages,
+        LeadChatMessage(
+          id: '_local',
+          role: 'user',
+          body: question,
+          source: 'mobile',
+          createdAt: DateTime.now(),
+        ),
+        const LeadChatMessage.thinking(),
+      ];
+    });
+    _toBottom();
+
+    try {
+      final List<LeadChatMessage> stored =
+          await app<CrmRepository>().askAboutLead(widget.leadId, question);
+      if (!mounted) return;
+      setState(() {
+        _messages = <LeadChatMessage>[
+          ..._messages.where(
+            (LeadChatMessage m) => m.id != '_local' && !m.pending,
+          ),
+          ...stored,
+        ];
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages = _messages.where((LeadChatMessage m) => !m.pending).toList();
+        _error = e.message;
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+      _toBottom();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final LeadChatThread? t = _thread;
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
         bottom: false,
-        child: BlocConsumer<PipelineBloc, PipelineState>(
-          listener: (BuildContext context, PipelineState state) => _toBottom(),
-          builder: (BuildContext context, PipelineState state) {
-            final Lead? lead = state.openLead;
-            if (lead == null) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.green),
-              );
-            }
-            return Column(
-              children: <Widget>[
-                _Header(lead: lead),
-                if (state.leadBusy)
-                  const LinearProgressIndicator(
-                    minHeight: 2,
-                    color: AppColors.green,
-                    backgroundColor: Colors.transparent,
-                  ),
-                Expanded(
-                  child: ContentBounds(
-                    child: _Timeline(lead: lead, controller: _scroll),
-                  ),
-                ),
-                if (_voiceError.isNotEmpty) _VoiceError(message: _voiceError),
-                _Composer(
-                  controller: _input,
-                  listening: _listening,
-                  busy: state.leadBusy,
-                  onMic: _toggleMic,
-                  onLog: _log,
-                ),
-              ],
-            );
-          },
+        child: Column(
+          children: <Widget>[
+            _TopBar(title: t?.lead.title ?? 'Lead chat', onReset: _reset),
+            Expanded(
+              child: _loading && t == null
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.green),
+                    )
+                  : (_error.isNotEmpty && _messages.isEmpty)
+                      ? ErrorView(message: _error, onRetry: _load)
+                      : ContentBounds(
+                          maxWidth: Breakpoints.readableMaxWidth,
+                          child: ListView(
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                            children: <Widget>[
+                              if (t != null && !t.brief.isEmpty) ...<Widget>[
+                                LeadBriefTile(brief: t.brief),
+                                AppSpacing.vGapLg,
+                              ],
+                              if (_messages.isEmpty)
+                                _Starters(onTap: _send)
+                              else
+                                for (final LeadChatMessage m in _messages)
+                                  _Bubble(message: m),
+                            ],
+                          ),
+                        ),
+            ),
+            if (_error.isNotEmpty && _messages.isNotEmpty)
+              _InlineError(message: _error),
+            LeadComposer(
+              hint: 'Ask Ona about ${t?.lead.title ?? 'this lead'}…',
+              busy: _busy,
+              onSend: _send,
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Future<void> _reset() async {
+    await app<CrmRepository>().clearLeadThread(widget.leadId);
+    if (mounted) _load();
+  }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.lead});
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.title, required this.onReset});
 
-  final Lead lead;
+  final String title;
+  final Future<void> Function() onReset;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 6, 14, 8),
+      padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
       child: Row(
         children: <Widget>[
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.arrow_back_rounded),
           ),
+          const OnaMark(size: 26),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  lead.title,
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         height: 1.1,
                       ),
                 ),
-                if (lead.subtitle.isNotEmpty)
-                  Text(
-                    lead.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                Text(
+                  'Answers from this lead’s record',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          StageChip(lead.stage),
-          const SizedBox(width: 6),
           IconButton(
-            tooltip: 'Lead details',
-            onPressed: () => LeadSheet.open(context, lead.id),
-            icon: const Icon(Icons.info_outline_rounded, size: 21),
+            tooltip: 'Clear thread',
+            onPressed: onReset,
+            icon: const Icon(Icons.refresh_rounded, size: 20),
           ),
         ],
       ),
@@ -214,148 +252,127 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _Timeline extends StatelessWidget {
-  const _Timeline({required this.lead, required this.controller});
+/// What to ask when a thread is empty.
+///
+/// Every one of these is answerable from the brief the server builds, which is
+/// why they are these four and not a generic "how can I help".
+class _Starters extends StatelessWidget {
+  const _Starters({required this.onTap});
 
-  final Lead lead;
-  final ScrollController controller;
+  final ValueChanged<String> onTap;
+
+  static const List<String> _prompts = <String>[
+    'What did we last discuss?',
+    'What are they looking for?',
+    'What should I do next?',
+    'What do we still not know about them?',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    if (lead.activities.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xxl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.mic_none_rounded,
-                    size: 34, color: AppColors.green),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('Ask about this lead', style: Theme.of(context).textTheme.labelLarge),
+        AppSpacing.vGapSm,
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: <Widget>[
+            for (final String p in _prompts)
+              TagChip(
+                p,
+                color: AppColors.iris,
+                filled: false,
+                onTap: () => onTap(p),
               ),
-              AppSpacing.vGapLg,
-              Text(
-                'Nothing logged yet',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              AppSpacing.vGapSm,
-              Text(
-                'Hold the microphone and say what happened. You can edit it '
-                'before it is saved.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+          ],
+        ),
+      ],
+    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1);
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.message});
+
+  final LeadChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    if (message.pending) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: <Widget>[
+            OnaMark(size: 24),
+            SizedBox(width: 10),
+            OnaThinking(),
+          ],
         ),
       );
     }
 
-    // Oldest first — a timeline reads down, and the newest entry ends up next
-    // to the box that just created it.
-    final List<LeadActivity> entries = lead.activities.reversed.toList();
-
-    return ListView.builder(
-      controller: controller,
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
-      itemCount: entries.length,
-      itemBuilder: (BuildContext context, int i) {
-        return _Entry(activity: entries[i])
-            .animate()
-            .fadeIn(duration: 240.ms)
-            .slideY(begin: 0.1, curve: Curves.easeOutCubic);
-      },
-    );
-  }
-}
-
-class _Entry extends StatelessWidget {
-  const _Entry({required this.activity});
-
-  final LeadActivity activity;
-
-  static String _when(DateTime? dt) {
-    if (dt == null) return '';
-    final Duration ago = DateTime.now().difference(dt.toLocal());
-    if (ago.inMinutes < 1) return 'just now';
-    if (ago.inMinutes < 60) return '${ago.inMinutes}m ago';
-    if (ago.inHours < 24) return '${ago.inHours}h ago';
-    if (ago.inDays < 30) return '${ago.inDays}d ago';
-    return dt.toLocal().toString().split(' ').first;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool byPerson = activity.actorType == 'user';
+    final bool user = message.isUser;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Align(
-        alignment: byPerson ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width * 0.82,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: byPerson ? AppColors.navy : AppColors.surface,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(byPerson ? 16 : 4),
-              bottomRight: Radius.circular(byPerson ? 4 : 16),
-            ),
-            border: byPerson ? null : Border.all(color: AppColors.cardBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                activity.label,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: byPerson
-                      ? Colors.white.withValues(alpha: 0.65)
-                      : AppColors.inkMuted,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment:
+            user ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: <Widget>[
+          if (!user) ...<Widget>[
+            const OnaMark(size: 24),
+            const SizedBox(width: 10),
+          ],
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: user ? AppColors.iris : AppColors.surface,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: Radius.circular(user ? 16 : 4),
+                  bottomRight: Radius.circular(user ? 4 : 16),
                 ),
+                border: user ? null : Border.all(color: AppColors.cardBorder),
               ),
-              if (activity.note.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 3),
-                Text(
-                  activity.note,
-                  style: TextStyle(
-                    height: 1.35,
-                    color: byPerson ? Colors.white : AppColors.ink,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    message.body,
+                    style: TextStyle(
+                      height: 1.4,
+                      color: user ? Colors.white : AppColors.ink,
+                    ),
                   ),
-                ),
-              ],
-              const SizedBox(height: 4),
-              Text(
-                _when(activity.createdAt),
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: byPerson
-                      ? Colors.white.withValues(alpha: 0.55)
-                      : AppColors.inkMuted,
-                ),
+                  // Marked when it came from the browser, because a thread
+                  // that suddenly contains questions you did not ask is
+                  // confusing until you know where they came from.
+                  if (message.fromWeb && !user) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Text(
+                      'from the web app',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.inkMuted.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
-    );
+    ).animate().fadeIn(duration: 220.ms).slideY(begin: 0.1);
   }
 }
 
-class _VoiceError extends StatelessWidget {
-  const _VoiceError({required this.message});
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.message});
 
   final String message;
 
@@ -363,182 +380,14 @@ class _VoiceError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.atRisk.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        ),
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.mic_off_rounded, size: 16, color: AppColors.atRisk),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.listening,
-    required this.busy,
-    required this.onMic,
-    required this.onLog,
-  });
-
-  final TextEditingController controller;
-  final bool listening;
-  final bool busy;
-  final VoidCallback onMic;
-  final VoidCallback onLog;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      decoration: const BoxDecoration(color: AppColors.paper),
-      child: ContentBounds(
-        child: Column(
-          children: <Widget>[
-            if (listening) const _ListeningBanner(),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                _MicButton(listening: listening, onTap: onMic),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      hintText: listening
-                          ? 'Listening…'
-                          : 'Say or type what happened',
-                      isDense: true,
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 13,
-                      ),
-                      border: _border(AppColors.cardBorder),
-                      enabledBorder: _border(AppColors.cardBorder),
-                      focusedBorder: _border(AppColors.green),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: controller,
-                  builder: (BuildContext context, TextEditingValue value, _) {
-                    final bool can = value.text.trim().isNotEmpty && !busy;
-                    return SizedBox(
-                      height: 46,
-                      child: FilledButton(
-                        onPressed: can ? onLog : null,
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusPill),
-                          ),
-                        ),
-                        child: const Text('Log'),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static OutlineInputBorder _border(Color color) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        borderSide: BorderSide(color: color),
-      );
-}
-
-class _ListeningBanner extends StatelessWidget {
-  const _ListeningBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: AppColors.negative,
-              shape: BoxShape.circle,
-            ),
-          )
-              .animate(onPlay: (AnimationController c) => c.repeat(reverse: true))
-              .fadeIn(duration: 700.ms, begin: 0.25),
-          const SizedBox(width: 8),
-          Text(
-            'Listening — tap the mic to stop',
-            style: Theme.of(context).textTheme.bodySmall,
+          const Icon(Icons.cloud_off_rounded, size: 15, color: AppColors.negative),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(message, style: Theme.of(context).textTheme.bodySmall),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MicButton extends StatelessWidget {
-  const _MicButton({required this.listening, required this.onTap});
-
-  final bool listening;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: listening ? AppColors.negative : AppColors.surface,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: listening ? AppColors.negative : AppColors.cardBorderStrong,
-            width: 1.5,
-          ),
-          boxShadow: listening
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: AppColors.negative.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 5),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          listening ? Icons.stop_rounded : Icons.mic_rounded,
-          color: listening ? Colors.white : AppColors.ink,
-          size: 22,
-        ),
       ),
     );
   }

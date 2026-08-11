@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/listing.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/crm_chips.dart';
+import 'listing_cover.dart';
 
 /// One property.
 ///
@@ -33,7 +33,35 @@ class ListingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _Banner(listing: listing),
+          Stack(
+            children: <Widget>[
+              ListingCover(listing: listing),
+              // The badges sit on the photo, so a scrim keeps them legible
+              // whatever the picture underneath happens to be.
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[
+                        Colors.black.withValues(alpha: 0.34),
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.10),
+                      ],
+                      stops: const <double>[0, 0.55, 1],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                left: 12,
+                right: 12,
+                child: _BannerBadges(listing: listing),
+              ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Column(
@@ -118,87 +146,44 @@ class ListingCard extends StatelessWidget {
   }
 }
 
-/// The coloured header strip.
-///
-/// The inventory has no hosted image URLs the phone can fetch — `images` holds
-/// server-side paths — so rather than render a broken-image box, the card uses
-/// a typed gradient and says what the property is. A placeholder that looks
-/// deliberate beats one that looks broken.
-class _Banner extends StatelessWidget {
-  const _Banner({required this.listing});
+/// The badges that sit over the cover photo.
+class _BannerBadges extends StatelessWidget {
+  const _BannerBadges({required this.listing});
 
   final Listing listing;
 
-  List<Color> get _gradient {
-    final int seed = listing.id.hashCode.abs();
-    const List<List<Color>> palettes = <List<Color>>[
-      <Color>[Color(0xFF0B3340), Color(0xFF0A2A29)],
-      <Color>[Color(0xFF143C5C), Color(0xFF0B233A)],
-      <Color>[Color(0xFF1F4B3F), Color(0xFF0E2A24)],
-      <Color>[Color(0xFF3A2F52), Color(0xFF1E1832)],
-    ];
-    return palettes[seed % palettes.length];
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 78,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _gradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppSpacing.radiusLg),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(
-            listing.propertyType.toLowerCase().contains('villa')
-                ? Icons.villa_outlined
-                : (listing.propertyType.toLowerCase().contains('plot')
-                    ? Icons.landscape_outlined
-                    : Icons.apartment_rounded),
-            color: Colors.white.withValues(alpha: 0.9),
-            size: 26,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (!listing.isAvailable)
+          TagChip(listing.status, color: Colors.white, filled: false)
+        else if (listing.isUnassigned)
+          const TagChip(
+            'Unassigned',
+            color: Colors.white,
+            filled: false,
+            icon: Icons.person_off_outlined,
           ),
-          const Spacer(),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              if (!listing.isAvailable)
-                TagChip(
-                  listing.status,
-                  color: Colors.white,
-                  filled: false,
-                )
-              else if (listing.isUnassigned)
-                const TagChip(
-                  'Unassigned',
-                  color: Colors.white,
-                  filled: false,
-                  icon: Icons.person_off_outlined,
-                ),
-              if (listing.shareCount > 0) ...<Widget>[
-                const SizedBox(height: 5),
-                Text(
-                  'Shared ${listing.shareCount}×',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.85),
-                  ),
-                ),
-              ],
-            ],
+        const Spacer(),
+        if (listing.shareCount > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.42),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              'Shared ${listing.shareCount}\u00d7',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

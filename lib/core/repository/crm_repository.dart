@@ -1,3 +1,4 @@
+import '../models/lead_chat.dart';
 import '../models/listing.dart';
 import '../models/ona.dart';
 import '../models/pipeline.dart';
@@ -65,6 +66,33 @@ class CrmRepository {
     return Lead.fromJson(asMap(res['lead']));
   }
 
+  // ── lead chat ───────────────────────────────────────────────────────────────
+
+  /// A lead's thread and its brief tile.
+  ///
+  /// The thread lives in Postgres, not on the device, so a question asked on
+  /// the phone is there on the desktop and vice versa.
+  Future<LeadChatThread> leadThread(String contactId) async =>
+      LeadChatThread.fromJson(await _api.get('/api/leadchat/$contactId'));
+
+  /// Ask about this lead. Both turns are stored server-side before this
+  /// returns, so the answer cannot exist on screen without existing in the
+  /// record.
+  Future<List<LeadChatMessage>> askAboutLead(
+    String contactId,
+    String message,
+  ) async {
+    final Map<String, dynamic> res = await _api.post(
+      '/api/leadchat/$contactId/ask',
+      body: <String, dynamic>{'message': message},
+    );
+    return asMaps(res['messages']).map(LeadChatMessage.fromJson).toList();
+  }
+
+  Future<void> clearLeadThread(String contactId) async {
+    await _api.post('/api/leadchat/$contactId/clear');
+  }
+
   // ── listings ────────────────────────────────────────────────────────────────
 
   Future<ListingResults> listings(ListingFilters filters) async {
@@ -96,6 +124,20 @@ class CrmRepository {
       },
     );
     return asInt(res['recorded']);
+  }
+
+  /// A time-limited link to a property's cover photo, or empty when it has
+  /// none. Signed server-side after the same read check the web app applies,
+  /// so a photo is reachable exactly as long as the viewer is allowed it.
+  Future<String> listingPhoto(String id) async {
+    try {
+      final Map<String, dynamic> res =
+          await _api.get('/api/listings/$id/photo');
+      return res['ok'] == true ? asString(res['url']) : '';
+    } catch (_) {
+      // A missing photo must never stop a card rendering.
+      return '';
+    }
   }
 
   /// Edit a property. Returns it as stored — normalisation rewrites a changed

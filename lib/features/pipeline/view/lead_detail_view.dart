@@ -2,140 +2,155 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../core/models/pipeline.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/widgets/crm_chips.dart';
-import '../../bloc/pipeline_bloc.dart';
+import '../../../core/models/pipeline.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/responsive.dart';
+import '../../../shared/widgets/crm_chips.dart';
+import '../bloc/pipeline_bloc.dart';
+import 'widgets/lead_composer.dart';
+import 'widgets/lead_edit_sheet.dart';
 
-/// The lead detail sheet: who they are, what they want, what happened, and the
-/// four things a rep actually does next.
+/// The full lead record: details, stage, timeline, and the actions on it.
 ///
-/// Every write here is confirmed before it happens and shows the stored record
-/// afterwards — the timeline reloads from the server rather than optimistically
-/// appending, so what is on screen is what is in the database.
-class LeadSheet extends StatelessWidget {
-  const LeadSheet({super.key});
+/// A page rather than the bottom sheet this replaces. The sheet was fine for a
+/// glance, but this is where a rep corrects a budget and reads a timeline, and
+/// a draggable sheet fights both — it steals the scroll gesture and it cannot
+/// hold a keyboard without covering the field being typed into.
+class LeadDetailView extends StatelessWidget {
+  const LeadDetailView({super.key, required this.leadId});
 
-  /// Opens the sheet for [id], loading it through the bloc.
-  static void open(BuildContext context, String id) {
+  final String leadId;
+
+  static Future<void> open(BuildContext context, String leadId) {
     final PipelineBloc bloc = context.read<PipelineBloc>()
-      ..add(PipelineLeadOpened(id));
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.paper,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ..add(PipelineLeadOpened(leadId));
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider<PipelineBloc>.value(
+          value: bloc,
+          child: LeadDetailView(leadId: leadId),
+        ),
       ),
-      builder: (_) => BlocProvider<PipelineBloc>.value(
-        value: bloc,
-        child: const LeadSheet(),
-      ),
-    ).whenComplete(() => bloc.add(const PipelineLeadClosed()));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.96,
-      expand: false,
-      builder: (BuildContext context, ScrollController controller) {
-        return BlocBuilder<PipelineBloc, PipelineState>(
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        bottom: false,
+        child: BlocBuilder<PipelineBloc, PipelineState>(
           builder: (BuildContext context, PipelineState state) {
             final Lead? lead = state.openLead;
             if (lead == null) {
               return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: CircularProgressIndicator(color: AppColors.green),
-                ),
+                child: CircularProgressIndicator(color: AppColors.green),
               );
             }
-            return _Body(lead: lead, controller: controller, busy: state.leadBusy);
+            return Column(
+              children: <Widget>[
+                _TopBar(lead: lead),
+                if (state.leadBusy)
+                  const LinearProgressIndicator(
+                    minHeight: 2,
+                    color: AppColors.green,
+                    backgroundColor: Colors.transparent,
+                  ),
+                Expanded(
+                  child: ContentBounds(
+                    maxWidth: Breakpoints.readableMaxWidth,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                      children: <Widget>[
+                        ChipRow(
+                          children: <Widget>[
+                            StageChip(lead.stage),
+                            if (lead.needsAttention) RiskChip(lead),
+                            if (lead.moneyLabel.isNotEmpty)
+                              TagChip(
+                                lead.moneyLabel,
+                                color: AppColors.green,
+                                icon: Icons.currency_rupee_rounded,
+                              ),
+                          ],
+                        ),
+                        AppSpacing.vGapLg,
+                        _ActionStrip(lead: lead),
+                        AppSpacing.vGapLg,
+                        _StageMover(lead: lead),
+                        AppSpacing.vGapLg,
+                        _Facts(lead: lead),
+                        if (lead.riskReasons.isNotEmpty) ...<Widget>[
+                          AppSpacing.vGapLg,
+                          _WhyThisScore(lead: lead),
+                        ],
+                        AppSpacing.vGapLg,
+                        _Timeline(lead: lead),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
           },
-        );
-      },
+        ),
+      ),
     );
   }
 }
 
-class _Body extends StatelessWidget {
-  const _Body({required this.lead, required this.controller, required this.busy});
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.lead});
 
   final Lead lead;
-  final ScrollController controller;
-  final bool busy;
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-
-    return Column(
-      children: <Widget>[
-        const SizedBox(height: 10),
-        Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.cardBorderStrong,
-            borderRadius: BorderRadius.circular(2),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 4, 12, 4),
+      child: Row(
+        children: <Widget>[
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_rounded),
           ),
-        ),
-        if (busy)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: SizedBox(
-              height: 2,
-              child: LinearProgressIndicator(minHeight: 2, color: AppColors.green),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  lead.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                ),
+                if (lead.subtitle.isNotEmpty)
+                  Text(
+                    lead.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
             ),
           ),
-        Expanded(
-          child: ListView(
-            controller: controller,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-            children: <Widget>[
-              Text(
-                lead.title,
-                style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              if (lead.subtitle.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 3),
-                Text(lead.subtitle, style: text.bodyMedium),
-              ],
-              AppSpacing.vGapMd,
-              ChipRow(
-                children: <Widget>[
-                  StageChip(lead.stage),
-                  if (lead.needsAttention) RiskChip(lead),
-                  if (lead.moneyLabel.isNotEmpty)
-                    TagChip(
-                      lead.moneyLabel,
-                      color: AppColors.green,
-                      icon: Icons.currency_rupee_rounded,
-                    ),
-                ],
-              ),
-              AppSpacing.vGapLg,
-              _ActionStrip(lead: lead),
-              AppSpacing.vGapLg,
-              _StageMover(lead: lead),
-              AppSpacing.vGapLg,
-              _Facts(lead: lead),
-              if (lead.riskReasons.isNotEmpty) ...<Widget>[
-                AppSpacing.vGapLg,
-                _WhyThisScore(lead: lead),
-              ],
-              AppSpacing.vGapLg,
-              _Timeline(lead: lead),
-            ],
+          TextButton.icon(
+            onPressed: () => LeadEditSheet.open(context, lead).then((Lead? l) {
+              if (l != null && context.mounted) {
+                context.read<PipelineBloc>().add(PipelineLeadOpened(lead.id));
+                context.read<PipelineBloc>().add(const PipelineLoaded());
+              }
+            }),
+            icon: const Icon(Icons.edit_outlined, size: 17),
+            label: const Text('Edit'),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -205,7 +220,7 @@ class _ActionStrip extends StatelessWidget {
             icon: Icons.edit_note_rounded,
             label: 'Log',
             color: AppColors.green,
-            onTap: () => _LogNoteDialog.open(context, lead),
+            onTap: () => _LogNoteSheet.open(context, lead),
           ),
         ),
       ],
@@ -515,66 +530,85 @@ class _Timeline extends StatelessWidget {
   }
 }
 
-/// Compose a note, see it, then confirm. Ona's rule applies to the rep too:
-/// nothing is written until a person presses the button.
-class _LogNoteDialog extends StatefulWidget {
-  const _LogNoteDialog({required this.lead});
+/// Log an activity: dictate or type, see it, then confirm.
+///
+/// A sheet rather than a dialog because it carries the composer, and the
+/// composer carries the microphone — the whole point of logging from a phone
+/// is not typing. Nothing is written until Log is pressed: recognisers mishear
+/// names and prices, and a note that silently records the wrong number is
+/// worse than no note.
+class _LogNoteSheet extends StatelessWidget {
+  const _LogNoteSheet({required this.lead});
 
   final Lead lead;
 
   static void open(BuildContext context, Lead lead) {
     final PipelineBloc bloc = context.read<PipelineBloc>();
-    showDialog<void>(
+    showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => BlocProvider<PipelineBloc>.value(
         value: bloc,
-        child: _LogNoteDialog(lead: lead),
+        child: _LogNoteSheet(lead: lead),
       ),
     );
   }
 
   @override
-  State<_LogNoteDialog> createState() => _LogNoteDialogState();
-}
-
-class _LogNoteDialogState extends State<_LogNoteDialog> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Log on ${widget.lead.title}'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: 4,
-        decoration: const InputDecoration(
-          hintText: 'What happened? e.g. “Site visit done, wants a revised quote.”',
-        ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.cardBorderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Log on ${lead.title}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  'Tap the mic and say what happened, or type it.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          LeadComposer(
+            hint: 'e.g. “Site visit done, wants a revised quote.”',
+            busy: false,
+            onSend: (String note) {
+              context
+                  .read<PipelineBloc>()
+                  .add(PipelineNoteLogged(lead.id, note));
+              Navigator.pop(context);
+            },
+          ),
+        ],
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            final String note = _controller.text.trim();
-            if (note.isEmpty) return;
-            context
-                .read<PipelineBloc>()
-                .add(PipelineNoteLogged(widget.lead.id, note));
-            Navigator.pop(context);
-          },
-          child: const Text('Log it'),
-        ),
-      ],
     );
   }
 }

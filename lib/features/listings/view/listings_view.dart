@@ -27,10 +27,11 @@ class ListingsView extends StatefulWidget {
 }
 
 class _ListingsViewState extends State<ListingsView> {
-  /// Swipe is the default: flicking through inventory for a client is one
-  /// decision per property. The list stays one tap away for when the job is
-  /// "find that specific flat in Hoskote" rather than "show me what we have".
-  bool _deck = true;
+  /// The list is the default. Swiping is the better gesture for *choosing*,
+  /// but most visits to this tab are a lookup — find the Hoskote penthouse,
+  /// check its price — and a deck makes you flick past everything to reach
+  /// one thing. Swipe is a deliberate mode, one tap away in the header.
+  bool _deck = false;
 
   @override
   Widget build(BuildContext context) {
