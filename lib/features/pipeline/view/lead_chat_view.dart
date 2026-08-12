@@ -6,6 +6,7 @@ import '../../../core/get.dart';
 import '../../../core/models/lead_chat.dart';
 import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/secona_api.dart';
+import '../../../core/services/firebase/analytics_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
@@ -69,6 +70,7 @@ class _LeadChatViewState extends State<LeadChatView> {
   }
 
   Future<void> _load() async {
+    app<AnalyticsService>().log(AnalyticsEvents.leadChatOpened);
     setState(() {
       _loading = true;
       _error = '';
@@ -123,6 +125,10 @@ class _LeadChatViewState extends State<LeadChatView> {
     });
     _toBottom();
 
+    app<AnalyticsService>().log(
+      AnalyticsEvents.leadChatAsked,
+      <String, Object>{'length': question.length},
+    );
     try {
       final List<LeadChatMessage> stored =
           await app<CrmRepository>().askAboutLead(widget.leadId, question);

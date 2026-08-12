@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/crm_chips.dart';
+import '../../../../shared/widgets/lead_facts.dart';
 
 /// One lead on the board.
 ///
@@ -82,14 +83,24 @@ class LeadCard extends StatelessWidget {
                       children: <Widget>[
                         StageChip(lead.stage),
                         if (lead.needsAttention) RiskChip(lead),
-                        if (lead.locality.isNotEmpty)
-                          TagChip(
-                            lead.locality,
-                            icon: Icons.place_outlined,
-                            color: AppColors.inkMuted,
-                          ),
                       ],
                     ),
+                    if (lead.locality.isNotEmpty ||
+                        lead.requirement.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 8),
+                      LeadFactPills(
+                        facts: <(IconData, String, Color)>[
+                          if (lead.locality.isNotEmpty)
+                            (Icons.place_outlined, lead.locality, AppColors.iris),
+                          if (lead.requirement.isNotEmpty)
+                            (
+                              Icons.home_work_outlined,
+                              lead.requirement,
+                              AppColors.inkSoft
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 9),
                     Row(
                       children: <Widget>[

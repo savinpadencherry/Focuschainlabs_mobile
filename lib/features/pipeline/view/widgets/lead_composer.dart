@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../../../core/get.dart';
+import '../../../../core/services/firebase/analytics_service.dart';
 import '../../../../core/services/voice/voice_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -70,6 +72,11 @@ class _LeadComposerState extends State<LeadComposer> {
         );
         if (isFinal) setState(() => _listening = false);
       },
+    );
+    app<AnalyticsService>().log(
+      started
+          ? AnalyticsEvents.dictationStarted
+          : AnalyticsEvents.dictationUnavailable,
     );
     if (mounted) setState(() => _listening = started);
   }

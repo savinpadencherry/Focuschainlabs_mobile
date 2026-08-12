@@ -1,9 +1,11 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../core/get.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/secona_api.dart';
+import '../../../core/services/firebase/analytics_service.dart';
 
 part 'listings_event.dart';
 part 'listings_state.dart';
@@ -46,6 +48,16 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     Emitter<ListingsState> emit,
   ) async {
     emit(state.copyWith(filters: event.filters));
+    // Which constraints are used, never their values.
+    app<AnalyticsService>().log(
+      AnalyticsEvents.listingsSearched,
+      <String, Object>{
+        'has_query': event.filters.query.isNotEmpty,
+        'has_bhk': event.filters.bhk.isNotEmpty,
+        'has_locality': event.filters.locality.isNotEmpty,
+        'has_budget': event.filters.maxPrice > 0 || event.filters.minPrice > 0,
+      },
+    );
     add(const ListingsLoaded());
   }
 
@@ -81,6 +93,10 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
         channel: event.channel,
       );
       emit(state.copyWith(sharing: false, shareReceipt: recorded));
+      app<AnalyticsService>().log(
+        AnalyticsEvents.listingShared,
+        <String, Object>{'count': event.listingIds.length, 'channel': event.channel},
+      );
       // Share counts are on the cards, so the list is now one write out of date.
       add(const ListingsLoaded());
     } on ApiException catch (e) {

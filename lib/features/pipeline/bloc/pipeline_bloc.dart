@@ -1,9 +1,11 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../core/get.dart';
 import '../../../core/models/pipeline.dart';
 import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/secona_api.dart';
+import '../../../core/services/firebase/analytics_service.dart';
 
 part 'pipeline_event.dart';
 part 'pipeline_state.dart';
@@ -44,6 +46,11 @@ class PipelineBloc extends Bloc<PipelineEvent, PipelineState> {
     Emitter<PipelineState> emit,
   ) async {
     emit(state.copyWith(search: event.query));
+    // Whether people search at all, not what for — a search term in a CRM is
+    // usually a client's name.
+    if (event.query.isNotEmpty) {
+      app<AnalyticsService>().log(AnalyticsEvents.leadSearched);
+    }
     add(const PipelineLoaded());
   }
 
@@ -62,8 +69,13 @@ class PipelineBloc extends Bloc<PipelineEvent, PipelineState> {
     try {
       final Lead lead = await _repository.lead(event.id);
       emit(state.copyWith(openLead: lead, leadBusy: false));
+      app<AnalyticsService>().log(AnalyticsEvents.leadOpened);
     } on ApiException catch (e) {
       emit(state.copyWith(leadBusy: false, error: e.message));
+      app<AnalyticsService>().log(
+        AnalyticsEvents.apiFailed,
+        <String, Object>{'where': 'lead_open', 'status': e.statusCode},
+      );
     }
   }
 
@@ -78,6 +90,11 @@ class PipelineBloc extends Bloc<PipelineEvent, PipelineState> {
     emit(state.copyWith(leadBusy: true, error: ''));
     try {
       final Lead stored = await _repository.moveStage(event.id, event.stage);
+      // The stage name is a fixed vocabulary, not a person — safe to count.
+      app<AnalyticsService>().log(
+        AnalyticsEvents.leadStageChanged,
+        <String, Object>{'stage': event.stage.key},
+      );
       // The board's counts and the lead's stage both changed, so both are
       // re-read rather than patched locally — a board that disagrees with the
       // lead it just moved is the bug this avoids.
@@ -95,6 +112,10 @@ class PipelineBloc extends Bloc<PipelineEvent, PipelineState> {
     emit(state.copyWith(leadBusy: true, error: ''));
     try {
       final Lead stored = await _repository.logActivity(event.id, event.note);
+      app<AnalyticsService>().log(
+        AnalyticsEvents.leadNoteLogged,
+        <String, Object>{'length': event.note.length},
+      );
       emit(state.copyWith(openLead: stored, leadBusy: false));
       add(const PipelineLoaded());
     } on ApiException catch (e) {

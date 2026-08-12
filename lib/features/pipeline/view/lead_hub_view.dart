@@ -11,6 +11,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
 import '../../../shared/widgets/error_view.dart';
+import '../../../shared/widgets/lead_facts.dart';
 import '../bloc/pipeline_bloc.dart';
 import 'lead_chat_view.dart';
 import 'lead_detail_view.dart';
@@ -171,14 +172,29 @@ class _Identity extends StatelessWidget {
           children: <Widget>[
             StageChip(thread.lead.stage),
             if (thread.lead.needsAttention) RiskChip(thread.lead),
-            if (thread.lead.moneyLabel.isNotEmpty)
+            if (thread.lead.score > 0)
               TagChip(
-                thread.lead.moneyLabel,
-                color: AppColors.green,
-                icon: Icons.currency_rupee_rounded,
+                'Score ${thread.lead.score}/100',
+                color: AppColors.inkSoft,
+                icon: Icons.speed_rounded,
               ),
           ],
         ),
+        AppSpacing.vGapMd,
+        // The same pills an Ona answer shows for this lead. Opening a lead
+        // from Pipeline used to show its name and little else, so the richer
+        // view was the one you reached by accident.
+        LeadFactPills.fromLead(thread.lead),
+        if (thread.lead.phone.isNotEmpty || thread.lead.email.isNotEmpty) ...<Widget>[
+          AppSpacing.vGapSm,
+          Text(
+            <String>[
+              if (thread.lead.phone.isNotEmpty) thread.lead.phone,
+              if (thread.lead.email.isNotEmpty) thread.lead.email,
+            ].join('  ·  '),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ],
     );
   }

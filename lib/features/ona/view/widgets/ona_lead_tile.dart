@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/pipeline.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/lead_facts.dart';
 import '../../../pipeline/view/lead_chat_view.dart';
 import '../../../pipeline/view/lead_detail_view.dart';
 
@@ -52,31 +53,8 @@ class OnaLeadTile extends StatelessWidget {
         .join(' ');
   }
 
-  /// Budget, location, requirement — each from whichever key this answer used.
-  List<(IconData, String, Color)> get _facts {
-    final String due = asString(row['follow_up']);
-    final String budget = asString(row['budget']).isNotEmpty
-        ? asString(row['budget'])
-        : asString(row['value_fmt']);
-    final String where = asString(row['locality']).isNotEmpty
-        ? asString(row['locality'])
-        : asString(row['area']);
-    final String wants = asString(row['property_type']).isNotEmpty
-        ? asString(row['property_type'])
-        : asString(row['requirement']);
-
-    return <(IconData, String, Color)>[
-      if (due.isNotEmpty) (Icons.schedule_rounded, due, AppColors.atRisk),
-      if (budget.isNotEmpty)
-        (Icons.currency_rupee_rounded, budget, AppColors.green),
-      if (where.isNotEmpty) (Icons.place_outlined, where, AppColors.iris),
-      if (wants.isNotEmpty) (Icons.home_work_outlined, wants, AppColors.inkSoft),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
-    final List<(IconData, String, Color)> facts = _facts;
     final int? score = row['score'] is num ? (row['score'] as num).toInt() : null;
     final int? idle =
         row['days_idle'] is num ? (row['days_idle'] as num).toInt() : null;
@@ -111,22 +89,7 @@ class OnaLeadTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          if (facts.isEmpty)
-            Text(
-              'Nothing recorded about what they want yet.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontStyle: FontStyle.italic,
-                  ),
-            )
-          else
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: <Widget>[
-                for (final (IconData icon, String value, Color c) in facts)
-                  _Fact(icon: icon, value: value, colour: c),
-              ],
-            ),
+          LeadFactPills.fromRow(row),
           if (_id.isNotEmpty) ...<Widget>[
             const SizedBox(height: 11),
             // Two destinations, because they answer different questions: the
@@ -187,46 +150,6 @@ class _StatusPill extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: AppColors.inkSoft,
         ),
-      ),
-    );
-  }
-}
-
-class _Fact extends StatelessWidget {
-  const _Fact({required this.icon, required this.value, required this.colour});
-
-  final IconData icon;
-  final String value;
-  final Color colour;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: colour.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: colour.withValues(alpha: 0.22)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 12, color: colour),
-          const SizedBox(width: 5),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 190),
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: colour,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

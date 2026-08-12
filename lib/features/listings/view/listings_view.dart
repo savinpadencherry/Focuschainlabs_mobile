@@ -6,6 +6,8 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/get.dart';
+import '../../../core/services/firebase/analytics_service.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
 import '../../../shared/widgets/error_view.dart';
@@ -71,7 +73,13 @@ class _ListingsViewState extends State<ListingsView> {
                   subtitle: _subtitle(state),
                   trailing: _ViewToggle(
                     deck: _deck,
-                    onChanged: (bool v) => setState(() => _deck = v),
+                    onChanged: (bool v) {
+                      setState(() => _deck = v);
+                      app<AnalyticsService>().log(
+                        AnalyticsEvents.listingViewToggled,
+                        <String, Object>{'view': v ? 'deck' : 'list'},
+                      );
+                    },
                   ),
                 ),
                 _Controls(state: state),

@@ -7,6 +7,7 @@ import '../../core/repository/crm_repository.dart';
 import '../../core/services/api/identity_cache.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/responsive.dart';
 import '../../features/profile/view/profile_page.dart';
 
 /// The header every surface wears: title, a line of context, and the avatar.
@@ -37,36 +38,42 @@ class SurfaceHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 14, 8),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: leading ??
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.05,
-                          ),
-                    ),
-                    if (subtitle != null && subtitle!.isNotEmpty)
+      // Bounded like everything under it. The header was the one unbounded
+      // thing on these screens, so on a tablet the title sat to the left of
+      // the cards it was labelling.
+      child: ContentBounds(
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: leading ??
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
                       Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        title,
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.05,
+                                ),
                       ),
-                  ],
-                ),
-          ),
-          if (trailing != null) ...<Widget>[
-            trailing!,
-            const SizedBox(width: 10),
+                      if (subtitle != null && subtitle!.isNotEmpty)
+                        Text(
+                          subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+            ),
+            if (trailing != null) ...<Widget>[
+              trailing!,
+              const SizedBox(width: 10),
+            ],
+            const ProfileAvatarButton(),
           ],
-          const ProfileAvatarButton(),
-        ],
+        ),
       ),
     ).animate().fadeIn(duration: 320.ms).slideY(begin: -0.15, curve: Curves.easeOutCubic);
   }

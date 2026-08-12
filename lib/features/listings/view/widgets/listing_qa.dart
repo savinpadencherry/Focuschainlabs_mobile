@@ -5,6 +5,7 @@ import '../../../../core/get.dart';
 import '../../../../core/models/listing.dart';
 import '../../../../core/repository/crm_repository.dart';
 import '../../../../core/services/api/secona_api.dart';
+import '../../../../core/services/firebase/analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
@@ -47,6 +48,12 @@ class _ListingQaState extends State<ListingQa> {
   }
 
   Future<void> _ask(ListingQuestion q) async {
+    // The question id is a fixed vocabulary, so it says which of the four gets
+    // used without carrying anything about the property or the client.
+    app<AnalyticsService>().log(
+      AnalyticsEvents.listingQuestionAsked,
+      <String, Object>{'question': q.id},
+    );
     setState(() {
       _busy = true;
       _asked = q.label;

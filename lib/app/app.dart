@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/constants/app_constants.dart';
 import '../core/get.dart';
 import '../core/repository/auth_repository.dart';
+import '../core/services/firebase/analytics_service.dart';
 import '../core/services/navigator_service.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/bloc/auth_bloc.dart';
@@ -24,6 +25,11 @@ class SeconaApp extends StatelessWidget {
         title: AppConstants.appName,
         theme: AppTheme.light,
         navigatorKey: app<NavigatorService>().navigatorKey,
+        // Counts pushed routes without every screen remembering to log itself.
+        navigatorObservers: <NavigatorObserver>[
+          if (app<AnalyticsService>().observer != null)
+            app<AnalyticsService>().observer!,
+        ],
         builder: (BuildContext context, Widget? child) {
           final MediaQueryData mq = MediaQuery.of(context);
           return MediaQuery(

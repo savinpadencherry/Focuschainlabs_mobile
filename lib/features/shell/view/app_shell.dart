@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/get.dart';
+import '../../../core/models/listing.dart';
 import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/identity_cache.dart';
+import '../../../core/services/firebase/analytics_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../listings/bloc/listings_bloc.dart';
@@ -83,7 +85,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       return;
     }
     try {
-      IdentityCache.current = await app<CrmRepository>().me();
+      final Me me = await app<CrmRepository>().me();
+      IdentityCache.current = me;
+      // Org and role, never the person — usage can then be read per workspace
+      // and per kind of user without identifying anyone.
+      await app<AnalyticsService>()
+          .setWorkspace(orgId: me.organizationId, role: me.role);
     } catch (_) {
       // Unreachable or not a member. The surfaces report it properly; the
       // greeting and the avatar just fall back to neutral text.
@@ -91,10 +98,15 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (mounted) setState(() => _resolving = false);
   }
 
+  static const List<String> _tabNames = <String>['ona', 'pipeline', 'listings'];
+
   void _select(int value) {
     if (value == _index) return;
     setState(() => _index = value);
     _refreshFor(value);
+    if (value < _tabNames.length) {
+      app<AnalyticsService>().screen(_tabNames[value]);
+    }
   }
 
   @override

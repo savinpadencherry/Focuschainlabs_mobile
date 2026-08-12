@@ -3,13 +3,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/get.dart';
 import '../../../core/models/ona.dart';
+import '../../../core/services/firebase/analytics_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
 import '../../../shared/widgets/surface_header.dart';
-import '../bloc/ona_bloc.dart';
 import '../../pipeline/view/widgets/lead_composer.dart';
+import '../bloc/ona_bloc.dart';
 import 'widgets/ona_bubble.dart';
 import 'widgets/ona_landing.dart';
 import 'widgets/ona_mark.dart';
@@ -60,6 +62,12 @@ class _OnaViewState extends State<OnaView> {
     final String query = text.trim();
     if (query.isEmpty) return;
     context.read<OnaBloc>().add(OnaAsked(query, fromChip: fromChip));
+    // The length, never the question. What a rep asks about a client is the
+    // client's business and does not belong in an analytics property.
+    app<AnalyticsService>().log(
+      fromChip ? AnalyticsEvents.onaChipTapped : AnalyticsEvents.onaAsked,
+      <String, Object>{'length': query.length},
+    );
     FocusScope.of(context).unfocus();
   }
 
