@@ -4,18 +4,25 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/models/listing.dart';
 import '../../../../core/models/pipeline.dart';
+import '../../../../core/services/api/identity_cache.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/phone_number.dart';
 import '../../../../shared/widgets/crm_chips.dart';
 import '../../../pipeline/bloc/pipeline_bloc.dart';
 import '../../bloc/listings_bloc.dart';
 
-/// Pick a lead, review the message, then send.
+/// Send a property to a lead on WhatsApp.
 ///
-/// The composer opens *in place* rather than linking away, and nothing is
-/// recorded until the user has both chosen a recipient and pressed send. The
-/// message is shown in full first — a share that reaches a client is the last
-/// place for a surprise.
+/// Pick a lead, read the message that will go out, then send. The composer
+/// opens in place rather than linking away, and nothing is recorded until the
+/// rep has both chosen a recipient and pressed send — a share that reaches a
+/// client is the last place for a surprise.
+///
+/// Leads without a messageable number are listed but disabled, with the reason
+/// shown. Filtering them out would leave a rep hunting for a client who is in
+/// the CRM and simply has a landline on file; naming the reason turns that into
+/// something they can go and fix.
 class ShareSheet extends StatelessWidget {
   const ShareSheet({super.key, required this.listing});
 
@@ -46,9 +53,9 @@ class ShareSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
+      initialChildSize: 0.88,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.96,
       expand: false,
       builder: (BuildContext context, ScrollController controller) =>
           _Body(listing: listing, controller: controller),
@@ -69,13 +76,22 @@ class _Body extends StatefulWidget {
 class _BodyState extends State<_Body> {
   Lead? _lead;
   String _search = '';
+  bool _sending = false;
 
-  /// What the client will actually receive.
+  /// Which country a bare local number belongs to is the workspace's business,
+  /// not this widget's. Falls back to India, which is where every tenant is
+  /// today and what the server defaults to.
+  String get _dialCode => IdentityCache.current?.dialCode ?? '91';
+
+  PhoneNumber _number(Lead lead) =>
+      PhoneNumber.parse(lead.phone, dialCode: _dialCode);
+
+  /// What the client receives. Assembled from the record, so a rep can read it
+  /// before it goes rather than trusting a template they cannot see.
   String get _message {
     final Listing l = widget.listing;
-    final StringBuffer b = StringBuffer()
-      ..writeln(l.title)
-      ..writeln(l.priceFmt);
+    final StringBuffer b = StringBuffer()..writeln(l.title);
+    if (l.priceFmt.isNotEmpty) b.writeln(l.priceFmt);
     if (l.where.isNotEmpty) b.writeln(l.where);
     if (l.facts.isNotEmpty) b.writeln(l.facts.join(' · '));
     if (l.description.isNotEmpty) {
@@ -88,42 +104,68 @@ class _BodyState extends State<_Body> {
 
   Future<void> _send() async {
     final Lead? lead = _lead;
-    if (lead == null) return;
+    if (lead == null || _sending) return;
+    final PhoneNumber number = _number(lead);
+    if (!number.canWhatsApp) return;
 
-    // Recorded first. If the handoff to WhatsApp fails or the rep backs out of
-    // it, a share row that says "sent" would be a lie — but recording after a
-    // successful launch is impossible to observe, because the app is
-    // backgrounded by then. Recording first and letting the rep see the row is
-    // the honest half of an unavoidable trade.
-    context.read<ListingsBloc>().add(ListingsShared(
-          listingIds: <String>[widget.listing.id],
-          contactId: lead.id,
-          channel: 'whatsapp',
-        ));
+    setState(() => _sending = true);
 
-    final String phone = lead.phone.replaceAll(RegExp(r'[^0-9]'), '');
-    final Uri uri = Uri.parse(
-      'https://wa.me/$phone?text=${Uri.encodeComponent(_message)}',
-    );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // Recorded before the handoff. Once WhatsApp is in front of the rep this
+    // app is in the background and cannot observe what happened there, so the
+    // honest thing is to record that the property was sent to this lead and
+    // let the timeline show it — not to claim delivery we cannot see.
+    context.read<ListingsBloc>().add(
+          ListingsShared(
+            listingIds: <String>[widget.listing.id],
+            contactId: lead.id,
+            channel: 'whatsapp',
+          ),
+        );
+
+    final Uri uri = number.whatsAppUri(_message);
+    bool opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
     }
-    if (mounted) Navigator.pop(context);
+
+    if (!mounted) return;
+    if (opened) {
+      Navigator.pop(context);
+      return;
+    }
+    setState(() => _sending = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not open WhatsApp on this phone.'),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
+
     final List<Lead> leads = context
         .watch<PipelineBloc>()
         .state
         .board
         .leads
         .where((Lead l) =>
-            l.phone.isNotEmpty &&
-            (_search.isEmpty ||
-                l.title.toLowerCase().contains(_search.toLowerCase())))
-        .toList();
+            _search.isEmpty ||
+            l.title.toLowerCase().contains(_search.toLowerCase()))
+        .toList()
+      // Messageable leads first: the rep is here to send something, and a
+      // list that opens on the ones they cannot send to buries the job.
+      ..sort((Lead a, Lead b) {
+        final bool aOk = _number(a).canWhatsApp;
+        final bool bOk = _number(b).canWhatsApp;
+        if (aOk == bOk) return 0;
+        return aOk ? -1 : 1;
+      });
+
+    final PhoneNumber? chosen = _lead == null ? null : _number(_lead!);
 
     return Column(
       children: <Widget>[
@@ -142,7 +184,7 @@ class _BodyState extends State<_Body> {
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
             children: <Widget>[
               Text(
-                'Share this property',
+                'Send this property',
                 style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 3),
@@ -160,6 +202,11 @@ class _BodyState extends State<_Body> {
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                    borderSide: const BorderSide(color: AppColors.cardBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                    borderSide: const BorderSide(color: AppColors.cardBorder),
                   ),
                 ),
               ),
@@ -168,33 +215,20 @@ class _BodyState extends State<_Body> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   child: Text(
-                    'No leads with a phone number to share to.',
+                    _search.isEmpty
+                        ? 'No leads in your pipeline yet.'
+                        : 'No lead matches “$_search”.',
                     style: text.bodyMedium,
                   ),
                 )
               else
-                // A plain tappable row rather than RadioListTile: the radio
-                // group API is deprecated on current Flutter stable, and the
-                // whole row being the target is a bigger touch area anyway.
-                ...leads.take(20).map(
-                      (Lead l) => ListTile(
-                        onTap: () => setState(() => _lead = l),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          _lead?.id == l.id
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          color: _lead?.id == l.id
-                              ? AppColors.green
-                              : AppColors.inkMuted,
-                          size: 20,
-                        ),
-                        title: Text(l.title),
-                        subtitle: Text(l.phone),
-                        trailing: StageChip(l.stage),
-                      ),
-                    ),
+                for (final Lead l in leads.take(25))
+                  _LeadRow(
+                    lead: l,
+                    number: _number(l),
+                    selected: _lead?.id == l.id,
+                    onTap: () => setState(() => _lead = l),
+                  ),
               AppSpacing.vGapLg,
               Text('They will receive', style: text.labelLarge),
               AppSpacing.vGapSm,
@@ -208,28 +242,192 @@ class _BodyState extends State<_Body> {
                 ),
                 child: Text(_message, style: text.bodyMedium),
               ),
+              AppSpacing.vGapSm,
+              Text(
+                'WhatsApp opens with this ready to send. Nothing leaves the '
+                'app until you press send there.',
+                style: text.bodySmall,
+              ),
             ],
           ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-            child: SizedBox(
+        _SendBar(
+          lead: _lead,
+          number: chosen,
+          sending: _sending,
+          onSend: _send,
+        ),
+      ],
+    );
+  }
+}
+
+/// One lead in the picker: name, stage, and whether it can be messaged.
+class _LeadRow extends StatelessWidget {
+  const _LeadRow({
+    required this.lead,
+    required this.number,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Lead lead;
+  final PhoneNumber number;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool can = number.canWhatsApp;
+    return Opacity(
+      opacity: can ? 1 : 0.55,
+      child: InkWell(
+        onTap: can ? onTap : null,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.green.withValues(alpha: 0.08) : null,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: selected ? AppColors.green : AppColors.cardBorder,
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: 20,
+                color: selected
+                    ? AppColors.green
+                    : (can ? AppColors.inkMuted : AppColors.cardBorderStrong),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      lead.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Row(
+                      children: <Widget>[
+                        if (can)
+                          const Icon(
+                            Icons.chat_rounded,
+                            size: 11,
+                            color: Color(0xFF25D366),
+                          )
+                        else
+                          const Icon(
+                            Icons.phone_disabled_rounded,
+                            size: 11,
+                            color: AppColors.inkMuted,
+                          ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            can ? number.pretty : number.reason,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StageChip(lead.stage),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The send button, and why it is disabled when it is.
+class _SendBar extends StatelessWidget {
+  const _SendBar({
+    required this.lead,
+    required this.number,
+    required this.sending,
+    required this.onSend,
+  });
+
+  final Lead? lead;
+  final PhoneNumber? number;
+  final bool sending;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool ready = lead != null && (number?.canWhatsApp ?? false);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (lead != null && !(number?.canWhatsApp ?? false)) ...<Widget>[
+              Text(
+                '${lead!.title} has no number we can message. '
+                'Add a mobile number on the lead first.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.atRisk),
+              ),
+              AppSpacing.vGapSm,
+            ],
+            SizedBox(
               width: double.infinity,
+              height: 50,
               child: FilledButton.icon(
-                onPressed: _lead == null ? null : _send,
-                icon: const Icon(Icons.send_rounded, size: 18),
+                onPressed: ready && !sending ? onSend : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  disabledBackgroundColor: AppColors.paper3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                  ),
+                ),
+                icon: sending
+                    ? const SizedBox(
+                        width: 17,
+                        height: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.chat_rounded, size: 19),
                 label: Text(
-                  _lead == null
+                  lead == null
                       ? 'Pick a lead first'
-                      : 'Send to ${_lead!.title} on WhatsApp',
+                      : (ready
+                          ? 'Send to ${lead!.title} on WhatsApp'
+                          : 'No WhatsApp number'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

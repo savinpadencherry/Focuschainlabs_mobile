@@ -265,6 +265,7 @@ class Me extends Equatable {
     required this.organizationId,
     required this.organizationName,
     required this.vertical,
+    required this.dialCode,
     required this.role,
     required this.isAdmin,
     required this.canDistributeListings,
@@ -279,6 +280,9 @@ class Me extends Equatable {
       organizationId: asString(json['organization_id']),
       organizationName: asString(org['name']),
       vertical: asString(org['vertical']),
+      dialCode: asString(org['dial_code']).isNotEmpty
+          ? asString(org['dial_code'])
+          : '91',
       role: asString(json['role']),
       isAdmin: json['is_admin'] == true,
       canDistributeListings: json['can_distribute_listings'] == true,
@@ -294,6 +298,11 @@ class Me extends Equatable {
   /// `real_estate` or `b2b_saas`. Decides whether property inventory is a
   /// thing this tenant has at all.
   final String vertical;
+
+  /// The country calling code for this workspace's local phone numbers.
+  /// Needed to turn '8422978854' into a number WhatsApp accepts; which country
+  /// that is belongs to the tenant, not to the client.
+  final String dialCode;
   final String role;
   final bool isAdmin;
   final bool canDistributeListings;
