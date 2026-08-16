@@ -143,9 +143,25 @@ class _LeadChatViewState extends State<LeadChatView> {
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+      // As a bubble in the thread, not a line beneath it. The question is
+      // sitting right there and the eye is on the conversation; a caption
+      // under the composer is where an answer goes to be missed, which is
+      // what "it isn't answering" turned out to mean.
       setState(() {
-        _messages = _messages.where((LeadChatMessage m) => !m.pending).toList();
-        _error = e.message;
+        _messages = <LeadChatMessage>[
+          ..._messages.where((LeadChatMessage m) => !m.pending),
+          LeadChatMessage(
+            id: '_error_${DateTime.now().microsecondsSinceEpoch}',
+            role: 'assistant',
+            body: e.statusCode == 0 || e.statusCode == 408
+                ? 'I could not reach the CRM to answer that. '
+                    'Check your signal and ask again.'
+                : 'That did not go through (${e.statusCode}). ${e.message}',
+            source: 'mobile',
+            createdAt: DateTime.now(),
+            failed: true,
+          ),
+        ];
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -335,14 +351,24 @@ class _Bubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
-                color: user ? AppColors.iris : AppColors.surface,
+                color: user
+                    ? AppColors.iris
+                    : (message.failed
+                        ? AppColors.negative.withValues(alpha: 0.06)
+                        : AppColors.surface),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
                   bottomLeft: Radius.circular(user ? 16 : 4),
                   bottomRight: Radius.circular(user ? 4 : 16),
                 ),
-                border: user ? null : Border.all(color: AppColors.cardBorder),
+                border: user
+                    ? null
+                    : Border.all(
+                        color: message.failed
+                            ? AppColors.negative.withValues(alpha: 0.3)
+                            : AppColors.cardBorder,
+                      ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

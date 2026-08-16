@@ -68,6 +68,7 @@ class LeadChatMessage extends Equatable {
     required this.source,
     required this.createdAt,
     this.pending = false,
+    this.failed = false,
   });
 
   factory LeadChatMessage.fromJson(Map<String, dynamic> json) => LeadChatMessage(
@@ -97,6 +98,10 @@ class LeadChatMessage extends Equatable {
   final String source;
   final DateTime? createdAt;
   final bool pending;
+
+  /// A turn that never reached the server. Shown in the thread so the question
+  /// is answered by something, rather than appearing to be ignored.
+  final bool failed;
 
   bool get isUser => role == 'user';
 
