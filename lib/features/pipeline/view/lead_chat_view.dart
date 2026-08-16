@@ -11,7 +11,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
-import '../../../shared/widgets/error_view.dart';
 import '../../ona/view/widgets/ona_mark.dart';
 import '../bloc/pipeline_bloc.dart';
 import 'widgets/lead_brief_tile.dart';
@@ -181,33 +180,44 @@ class _LeadChatViewState extends State<LeadChatView> {
           children: <Widget>[
             _TopBar(title: t?.lead.title ?? 'Lead chat', onReset: _reset),
             Expanded(
-              child: _loading && t == null
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.green),
-                    )
-                  : (_error.isNotEmpty && _messages.isEmpty)
-                      ? ErrorView(message: _error, onRetry: _load)
-                      : ContentBounds(
-                          maxWidth: Breakpoints.readableMaxWidth,
-                          child: ListView(
-                            controller: _scroll,
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                            children: <Widget>[
-                              if (t != null && !t.brief.isEmpty) ...<Widget>[
-                                LeadBriefTile(brief: t.brief),
-                                AppSpacing.vGapLg,
-                              ],
-                              if (_messages.isEmpty)
-                                _Starters(onTap: _send)
-                              else
-                                for (final LeadChatMessage m in _messages)
-                                  _Bubble(message: m),
-                            ],
+              // One list, always populated. The previous version chose between
+              // a spinner, a full-screen error and the thread, and a fourth
+              // state fell between them: loaded, no brief, and messages that
+              // were all invisible. That rendered as an empty page with no
+              // explanation and no way in — the screen simply looked broken.
+              child: ContentBounds(
+                maxWidth: Breakpoints.readableMaxWidth,
+                child: ListView(
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                  children: <Widget>[
+                    if (t != null && !t.brief.isEmpty) ...<Widget>[
+                      LeadBriefTile(brief: t.brief),
+                      AppSpacing.vGapLg,
+                    ],
+                    if (_loading && t == null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 60),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.green,
                           ),
                         ),
+                      )
+                    else ...<Widget>[
+                      if (_error.isNotEmpty && _messages.isEmpty)
+                        _LoadProblem(message: _error, onRetry: _load),
+                      for (final LeadChatMessage m in _messages)
+                        _Bubble(message: m),
+                      // Always reachable: with no thread yet, and again under
+                      // an existing one, because "what else can I ask" is a
+                      // question people have after the first answer too.
+                      if (!_loading) _Starters(onTap: _send),
+                    ],
+                  ],
+                ),
+              ),
             ),
-            if (_error.isNotEmpty && _messages.isNotEmpty)
-              _InlineError(message: _error),
             LeadComposer(
               hint: 'Ask Ona about ${t?.lead.title ?? 'this lead'}…',
               busy: _busy,
@@ -403,21 +413,52 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.message});
+/// The thread could not be loaded. Shown in the list, with the way to retry.
+class _LoadProblem extends StatelessWidget {
+  const _LoadProblem({required this.message, required this.onRetry});
 
   final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-      child: Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.negative.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.negative.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(Icons.cloud_off_rounded, size: 15, color: AppColors.negative),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(message, style: Theme.of(context).textTheme.bodySmall),
+          Row(
+            children: <Widget>[
+              const Icon(Icons.cloud_off_rounded,
+                  size: 16, color: AppColors.negative),
+              const SizedBox(width: 8),
+              Text(
+                'Could not load this thread',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(message, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              child: const Text('Try again'),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'You can still ask below — the question will be saved either way.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
