@@ -2,23 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/get.dart';
+import '../../../core/models/lead_chat.dart';
 import '../../../core/models/pipeline.dart';
+import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/identity_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/crm_chips.dart';
 import '../bloc/pipeline_bloc.dart';
+import 'lead_chat_view.dart';
+import 'widgets/lead_brief_tile.dart';
 import 'widgets/lead_composer.dart';
 import 'widgets/lead_edit_sheet.dart';
 
-/// The full lead record: details, stage, timeline, and the actions on it.
+/// The lead. One screen, reached the same way from everywhere.
+///
+/// It was not: tapping a lead in Pipeline opened a fork — a brief and two big
+/// buttons — while tapping one in an Ona answer came straight here. Same noun,
+/// two destinations, and the Pipeline route made you take an extra hop to a
+/// summary, so the tab that exists *for* leads showed the least about them.
+/// The fork is gone; its brief is on this page, and the chat is a button in
+/// the action strip.
 ///
 /// A page rather than the bottom sheet this replaces. The sheet was fine for a
 /// glance, but this is where a rep corrects a budget and reads a timeline, and
 /// a draggable sheet fights both — it steals the scroll gesture and it cannot
 /// hold a keyboard without covering the field being typed into.
-class LeadDetailView extends StatelessWidget {
+class LeadDetailView extends StatefulWidget {
   const LeadDetailView({super.key, required this.leadId});
 
   final String leadId;
@@ -34,6 +46,37 @@ class LeadDetailView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  State<LeadDetailView> createState() => _LeadDetailViewState();
+}
+
+class _LeadDetailViewState extends State<LeadDetailView> {
+  /// The same server-built brief the lead chat and the web app show — stage,
+  /// what they want, what has been sent, what is open, what is missing.
+  ///
+  /// Fetched separately from the record because it is a different thing: the
+  /// record is columns on `contacts`, the brief is computed across activities,
+  /// shares and visits. A lead whose columns are thin can still have a lot to
+  /// say, which is exactly why the Ona tile read as richer than this page.
+  LeadBrief? _brief;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBrief();
+  }
+
+  Future<void> _loadBrief() async {
+    try {
+      final LeadChatThread t =
+          await app<CrmRepository>().leadThread(widget.leadId);
+      if (mounted) setState(() => _brief = t.brief);
+    } catch (_) {
+      // The record below is the point of this screen; the brief is a bonus on
+      // top of it and its absence is not worth an error state.
+    }
   }
 
   @override
@@ -78,6 +121,10 @@ class LeadDetailView extends StatelessWidget {
                           ],
                         ),
                         AppSpacing.vGapLg,
+                        if (_brief != null && !_brief!.isEmpty) ...<Widget>[
+                          LeadBriefTile(brief: _brief!),
+                          AppSpacing.vGapLg,
+                        ],
                         _ActionStrip(lead: lead),
                         AppSpacing.vGapLg,
                         _StageMover(lead: lead),
@@ -228,6 +275,19 @@ class _ActionStrip extends StatelessWidget {
             label: 'Log',
             color: AppColors.green,
             onTap: () => _LogNoteSheet.open(context, lead),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // The other half of the fork this page absorbed. Thinking out loud
+        // about a lead is a different job from correcting its record, but it
+        // is not a different screen you should have to pass through a menu to
+        // reach.
+        Expanded(
+          child: _ActionButton(
+            icon: Icons.forum_outlined,
+            label: 'Ask Ona',
+            color: AppColors.iris,
+            onTap: () => LeadChatView.open(context, lead.id),
           ),
         ),
       ],

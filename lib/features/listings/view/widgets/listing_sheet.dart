@@ -73,22 +73,29 @@ class ListingSheet extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView(
+            child: CustomScrollView(
               controller: controller,
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-              children: <Widget>[
-                // The photos. This sheet is where a rep decides whether to
-                // send a property to a client, and it used to open on a
-                // title and a price — the pictures existed, on the card
-                // behind it, and stopped at the first one even there.
-                if (listing.hasPhotos) ...<Widget>[
-                  ListingGallery(listing: listing),
-                  AppSpacing.vGapMd,
-                ],
-                Text(
-                  listing.title,
-                  style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
+              slivers: <Widget>[
+                // The photos, as a header that collapses into the bar. This
+                // sheet is where a rep decides whether to send a property to a
+                // client: at the top the pictures should be as large as the
+                // screen allows, and once they are reading the specs the
+                // pictures should get out of the way without being gone — the
+                // title stays pinned so they always know which flat this is.
+                if (listing.hasPhotos) _PhotoHeader(listing: listing),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate(<Widget>[
+                // With photos the title rides the header — over the picture
+                // when expanded, in the bar when collapsed — so repeating it
+                // here would print it twice on the same screen.
+                if (!listing.hasPhotos)
+                  Text(
+                    listing.title,
+                    style:
+                        text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ),
                 if (listing.where.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 3),
                   Text(listing.where, style: text.bodyMedium),
@@ -180,6 +187,9 @@ class ListingSheet extends StatelessWidget {
                     ],
                   ),
                 ],
+                    ]),
+                  ),
+                ),
               ],
             ),
           ),
@@ -279,6 +289,80 @@ class _Specs extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// The photos as a collapsing header.
+///
+/// Expanded, the gallery is nearly a third of the screen — a property is sold
+/// on its pictures and this sheet is where a rep decides whether to send it to
+/// a client. Scrolling into the specifications shrinks it to a bar rather than
+/// scrolling it away entirely: the title stays pinned, so nobody reads a
+/// carpet area halfway down and has to scroll back up to check which flat it
+/// belongs to.
+class _PhotoHeader extends StatelessWidget {
+  const _PhotoHeader({required this.listing});
+
+  final Listing listing;
+
+  @override
+  Widget build(BuildContext context) {
+    // A third of the screen, within bounds. Fixed at 300 it ate a small
+    // phone's whole viewport and left no specs visible under it.
+    final double expanded =
+        (MediaQuery.sizeOf(context).height * 0.34).clamp(200.0, 320.0);
+
+    return SliverAppBar(
+      pinned: true,
+      expandedHeight: expanded,
+      // The sheet has its own drag handle directly above this; a back arrow
+      // here would be a second, differently-behaved way out.
+      automaticallyImplyLeading: false,
+      backgroundColor: AppColors.paper,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.parallax,
+        titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+        title: Text(
+          listing.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            // The collapsed bar is paper, not photograph, so the white title
+            // needs something behind it there too.
+            shadows: <Shadow>[
+              Shadow(color: Color(0xCC161026), blurRadius: 10),
+              Shadow(color: Color(0x99161026), blurRadius: 24),
+            ],
+          ),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            ListingGallery(
+              listing: listing,
+              height: expanded,
+              borderRadius: BorderRadius.zero,
+              showDots: false,
+            ),
+            // Keeps the title legible over a bright photograph without
+            // dimming the picture where it matters.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.center,
+                  colors: <Color>[Color(0x99000000), Color(0x00000000)],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

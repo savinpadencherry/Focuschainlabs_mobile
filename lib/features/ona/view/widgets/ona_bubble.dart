@@ -9,7 +9,7 @@ import '../../../../shared/widgets/crm_chips.dart';
 import '../../../listings/view/widgets/listing_card.dart';
 import '../../../listings/view/widgets/listing_sheet.dart';
 import '../../../listings/view/widgets/share_sheet.dart';
-import '../../../pipeline/view/lead_hub_view.dart';
+import '../../../pipeline/view/lead_detail_view.dart';
 import '../../bloc/ona_bloc.dart';
 import 'ona_lead_tile.dart';
 import 'ona_mark.dart';
@@ -381,7 +381,7 @@ class _Handoff extends StatelessWidget {
 
   void _open(BuildContext context) {
     if (handoff.kind == 'lead' && handoff.contactId.isNotEmpty) {
-      LeadHubView.open(context, handoff.contactId);
+      LeadDetailView.open(context, handoff.contactId);
       return;
     }
     // Everything else needs a composer that does not exist on this surface

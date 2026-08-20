@@ -20,11 +20,18 @@ class ListingGallery extends StatefulWidget {
     required this.listing,
     this.height = 232,
     this.borderRadius,
+    this.showDots = true,
   });
 
   final Listing listing;
   final double height;
   final BorderRadius? borderRadius;
+
+  /// Off where something else already occupies the bottom edge — the
+  /// collapsing header puts the property's name there, and dots underneath a
+  /// title are two things competing for the same strip. The counter in the
+  /// corner still says how many photos there are.
+  final bool showDots;
 
   @override
   State<ListingGallery> createState() => _ListingGalleryState();
@@ -77,12 +84,13 @@ class _ListingGalleryState extends State<ListingGallery> {
           top: 10,
           child: _Counter(current: _index + 1, total: count),
         ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 10,
-          child: _Dots(count: count, current: _index),
-        ),
+        if (widget.showDots)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 10,
+            child: _Dots(count: count, current: _index),
+          ),
       ],
     );
   }

@@ -95,7 +95,7 @@ void main() {
         'people': <dynamic>[
           <String, dynamic>{
             'name': 'Meera',
-            'role': 'spouse',
+            'role': 'Spouse',
             'stance': 'blocker',
           },
         ],
@@ -103,7 +103,17 @@ void main() {
       final LeadPerson person = lead.people.single;
       expect(person.isBlocker, isTrue);
       expect(person.isChampion, isFalse);
-      expect(person.subtitle, 'spouse · blocker');
+      expect(person.subtitle, 'Spouse · blocker');
+    });
+
+    test('a person with no stance still reads as a person', () {
+      final Lead lead = parse(<String, dynamic>{
+        'people': <dynamic>[
+          <String, dynamic>{'name': 'Raj', 'role': 'Brother', 'stance': ''},
+        ],
+      });
+      expect(lead.people.single.subtitle, 'Brother');
+      expect(lead.people.single.isBlocker, isFalse);
     });
   });
 
