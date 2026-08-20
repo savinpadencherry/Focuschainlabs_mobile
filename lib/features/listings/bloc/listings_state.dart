@@ -34,15 +34,13 @@ class ListingsState extends Equatable {
         if (filters.propertyType.isNotEmpty) ('property_type', filters.propertyType),
         if (filters.locality.isNotEmpty) ('locality', filters.locality),
         if (filters.status.isNotEmpty) ('status', filters.status),
-        if (filters.maxPrice > 0) ('max_price', 'under ${_inr(filters.maxPrice)}'),
-        if (filters.minPrice > 0) ('min_price', 'above ${_inr(filters.minPrice)}'),
+        // One formatter for the whole app: this one printed "₹1.20 Cr" while
+        // the card beside it printed "₹1.2 Cr" for the same number.
+        if (filters.maxPrice > 0)
+          ('max_price', 'under ${Inr.format(filters.maxPrice)}'),
+        if (filters.minPrice > 0)
+          ('min_price', 'above ${Inr.format(filters.minPrice)}'),
       ];
-
-  static String _inr(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(0)} L';
-    return '₹${v.toStringAsFixed(0)}';
-  }
 
   ListingsState copyWith({
     ListingsStatus? status,

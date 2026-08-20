@@ -167,13 +167,31 @@ class _BannerBadges extends StatelessWidget {
             icon: Icons.person_off_outlined,
           ),
         const Spacer(),
-        if (listing.shareCount > 0)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.42),
-              borderRadius: BorderRadius.circular(999),
+        // How many pictures there are to see, because the card shows one and
+        // the swipe gesture that would reveal the rest lives in the sheet.
+        if (listing.photoCount > 1) ...<Widget>[
+          _Pill(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.photo_library_outlined,
+                    size: 11, color: Colors.white),
+                const SizedBox(width: 4),
+                Text(
+                  '${listing.photoCount}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(width: 6),
+        ],
+        if (listing.shareCount > 0)
+          _Pill(
             child: Text(
               'Shared ${listing.shareCount}\u00d7',
               style: const TextStyle(
@@ -184,6 +202,25 @@ class _BannerBadges extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// A dark lozenge, legible over any photograph.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: child,
     );
   }
 }

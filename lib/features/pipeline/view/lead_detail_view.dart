@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/pipeline.dart';
+import '../../../core/services/api/identity_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
@@ -82,11 +83,14 @@ class LeadDetailView extends StatelessWidget {
                         _StageMover(lead: lead),
                         AppSpacing.vGapLg,
                         _Facts(lead: lead),
-                        if (lead.riskReasons.isNotEmpty) ...<Widget>[
+                        if (lead.people.isNotEmpty) ...<Widget>[
+                          _People(lead: lead),
                           AppSpacing.vGapLg,
-                          _WhyThisScore(lead: lead),
                         ],
-                        AppSpacing.vGapLg,
+                        if (lead.riskReasons.isNotEmpty) ...<Widget>[
+                          _WhyThisScore(lead: lead),
+                          AppSpacing.vGapLg,
+                        ],
                         _Timeline(lead: lead),
                       ],
                     ),
@@ -139,16 +143,19 @@ class _TopBar extends StatelessWidget {
               ],
             ),
           ),
-          TextButton.icon(
-            onPressed: () => LeadEditSheet.open(context, lead).then((Lead? l) {
-              if (l != null && context.mounted) {
-                context.read<PipelineBloc>().add(PipelineLeadOpened(lead.id));
-                context.read<PipelineBloc>().add(const PipelineLoaded());
-              }
-            }),
-            icon: const Icon(Icons.edit_outlined, size: 17),
-            label: const Text('Edit'),
-          ),
+          // Hidden rather than disabled when the server says this account may
+          // not edit: a greyed-out button invites a tap and explains nothing.
+          if (IdentityCache.access.canEditLeads)
+            TextButton.icon(
+              onPressed: () => LeadEditSheet.open(context, lead).then((Lead? l) {
+                if (l != null && context.mounted) {
+                  context.read<PipelineBloc>().add(PipelineLeadOpened(lead.id));
+                  context.read<PipelineBloc>().add(const PipelineLoaded());
+                }
+              }),
+              icon: const Icon(Icons.edit_outlined, size: 17),
+              label: const Text('Edit'),
+            ),
         ],
       ),
     );
@@ -340,79 +347,258 @@ class _StageMover extends StatelessWidget {
   }
 }
 
+/// Everything on file about this lead, in the sections the server groups it into.
+///
+/// The rows here used to be a hard-coded list of eight fields, six fewer than
+/// the record holds: a rep learned more about a lead from its tile in an Ona
+/// answer than from opening the lead itself. Configuration, the budget they
+/// can stretch to, must-haves, financing, brokerage — all of it was on the row
+/// and none of it reached the page.
+///
+/// The grouping comes from the API so one place decides which section a field
+/// belongs to. A board summary carries no groups, so the fields this page has
+/// always known are the fallback.
 class _Facts extends StatelessWidget {
   const _Facts({required this.lead});
 
   final Lead lead;
 
+  List<LeadFieldGroup> get _groups {
+    if (lead.fieldGroups.isNotEmpty) return lead.fieldGroups;
+
+    LeadField? f(String key, String label, String value) => value.isEmpty
+        ? null
+        : LeadField(key: key, label: label, value: value);
+
+    final List<LeadField> fallback = <LeadField?>[
+      f('phone', 'Phone', lead.phone),
+      f('email', 'Email', lead.email),
+      f('budget', 'Budget', lead.budget),
+      f('requirement', 'Looking for', lead.requirement),
+      f('locality', 'Preferred area', lead.locality),
+      f('source', 'Source', lead.source),
+      f('owner', 'Owner', lead.owner),
+      f('next_follow_up', 'Next follow-up', lead.nextFollowUp),
+    ].whereType<LeadField>().toList();
+
+    return <LeadFieldGroup>[
+      if (fallback.isNotEmpty)
+        LeadFieldGroup(key: 'details', label: 'Details', fields: fallback),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final List<(String, String)> rows = <(String, String)>[
-      if (lead.phone.isNotEmpty) ('Phone', lead.phone),
-      if (lead.email.isNotEmpty) ('Email', lead.email),
-      if (lead.budget.isNotEmpty) ('Budget', lead.budget),
-      if (lead.requirement.isNotEmpty) ('Looking for', lead.requirement),
-      if (lead.locality.isNotEmpty) ('Locality', lead.locality),
-      if (lead.source.isNotEmpty) ('Source', lead.source),
-      if (lead.owner.isNotEmpty) ('Owner', lead.owner),
-      if (lead.nextFollowUp.isNotEmpty) ('Next follow-up', lead.nextFollowUp),
-    ];
-    if (rows.isEmpty && lead.notes.isEmpty) return const SizedBox.shrink();
+    final List<LeadFieldGroup> groups = _groups;
+    if (groups.isEmpty && lead.notes.isEmpty && lead.aiSummary.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('Details', style: Theme.of(context).textTheme.labelLarge),
-        AppSpacing.vGapSm,
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            border: Border.all(color: AppColors.cardBorder),
-          ),
-          child: Column(
+        if (lead.aiSummary.isNotEmpty) ...<Widget>[
+          _SummaryCard(text: lead.aiSummary),
+          AppSpacing.vGapLg,
+        ],
+        for (final LeadFieldGroup group in groups) ...<Widget>[
+          Text(group.label, style: Theme.of(context).textTheme.labelLarge),
+          AppSpacing.vGapSm,
+          _FactCard(rows: group.fields),
+          AppSpacing.vGapLg,
+        ],
+        if (lead.tags.isNotEmpty) ...<Widget>[
+          ChipRow(
             children: <Widget>[
-              for (int i = 0; i < rows.length; i++) ...<Widget>[
-                if (i > 0) const Divider(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    SizedBox(
-                      width: 108,
-                      child: Text(
-                        rows[i].$1,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        rows[i].$2,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (lead.notes.isNotEmpty) ...<Widget>[
-                const Divider(height: 18),
-                Align(
-                  alignment: Alignment.centerLeft,
+              for (final String tag in lead.tags)
+                TagChip(tag, color: AppColors.inkSoft),
+            ],
+          ),
+          AppSpacing.vGapLg,
+        ],
+        if (lead.notes.isNotEmpty) ...<Widget>[
+          Text('Notes', style: Theme.of(context).textTheme.labelLarge),
+          AppSpacing.vGapSm,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Text(
+              lead.notes,
+              style: TextStyle(
+                fontStyle:
+                    lead.notesArePrivate ? FontStyle.italic : FontStyle.normal,
+                color:
+                    lead.notesArePrivate ? AppColors.inkMuted : AppColors.ink,
+              ),
+            ),
+          ),
+          AppSpacing.vGapLg,
+        ],
+      ],
+    );
+  }
+}
+
+/// One section's rows, label on the left and value on the right.
+class _FactCard extends StatelessWidget {
+  const _FactCard({required this.rows});
+
+  final List<LeadField> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        children: <Widget>[
+          for (int i = 0; i < rows.length; i++) ...<Widget>[
+            if (i > 0) const Divider(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SizedBox(
+                  width: 118,
                   child: Text(
-                    lead.notes,
-                    style: TextStyle(
-                      fontStyle:
-                          lead.notesArePrivate ? FontStyle.italic : FontStyle.normal,
-                      color: lead.notesArePrivate
-                          ? AppColors.inkMuted
-                          : AppColors.ink,
-                    ),
+                    rows[i].label,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                Expanded(
+                  child: SelectableText(
+                    rows[i].value,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
-            ],
-          ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The CRM's own summary of the lead, where one has been generated.
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.iris.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.iris.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.iris),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+/// The other people around the deal, and where each of them stands.
+///
+/// `lead_contacts` has always been on the lead page in the browser and never
+/// on the phone, so a rep could ring the person recorded as the blocker
+/// without the app ever mentioning it.
+class _People extends StatelessWidget {
+  const _People({required this.lead});
+
+  final Lead lead;
+
+  @override
+  Widget build(BuildContext context) {
+    if (lead.people.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'People on this deal',
+          style: Theme.of(context).textTheme.labelLarge,
         ),
+        AppSpacing.vGapSm,
+        for (final LeadPerson person in lead.people)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(
+                  color: person.isBlocker
+                      ? AppColors.negative.withValues(alpha: 0.35)
+                      : AppColors.cardBorder,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    person.isBlocker
+                        ? Icons.block_rounded
+                        : (person.isChampion
+                            ? Icons.star_rounded
+                            : Icons.person_outline_rounded),
+                    size: 18,
+                    color: person.isBlocker
+                        ? AppColors.negative
+                        : (person.isChampion
+                            ? AppColors.green
+                            : AppColors.inkMuted),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          person.name.isNotEmpty ? person.name : 'Unnamed',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        if (person.subtitle.isNotEmpty)
+                          Text(
+                            person.subtitle,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        if (person.notes.isNotEmpty)
+                          Text(
+                            person.notes,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (person.phone.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Call ${person.name}',
+                      onPressed: () => launchUrl(Uri.parse('tel:${person.phone}')),
+                      icon: const Icon(Icons.call_rounded, size: 18),
+                    ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

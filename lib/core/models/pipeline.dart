@@ -130,6 +130,96 @@ class LeadActivity extends Equatable {
   List<Object?> get props => <Object?>[type, actorType, note, createdAt];
 }
 
+/// One labelled fact on a lead, exactly as the server named it.
+class LeadField extends Equatable {
+  const LeadField({required this.key, required this.label, required this.value});
+
+  factory LeadField.fromJson(Map<String, dynamic> json) => LeadField(
+        key: asString(json['key']),
+        label: asString(json['label']),
+        value: asString(json['value']),
+      );
+
+  final String key;
+  final String label;
+  final String value;
+
+  @override
+  List<Object?> get props => <Object?>[key, label, value];
+}
+
+/// A section of the lead page — "What they want", "Deal", and so on.
+///
+/// The grouping is sent, not decided here. Which section `budget_stretch`
+/// belongs in is a product decision, and a copy of it on the phone is a copy
+/// that drifts from the browser the first time either is edited.
+class LeadFieldGroup extends Equatable {
+  const LeadFieldGroup({
+    required this.key,
+    required this.label,
+    required this.fields,
+  });
+
+  factory LeadFieldGroup.fromJson(Map<String, dynamic> json) => LeadFieldGroup(
+        key: asString(json['key']),
+        label: asString(json['label']),
+        fields: asMaps(json['fields']).map(LeadField.fromJson).toList(),
+      );
+
+  final String key;
+  final String label;
+  final List<LeadField> fields;
+
+  @override
+  List<Object?> get props => <Object?>[key, label, fields];
+}
+
+/// Someone else around the deal — the spouse who has to agree, the brother
+/// who is paying, the tenant who has to move out.
+///
+/// `stance` is the whole point: knowing that the person you are about to ring
+/// is recorded as the blocker changes the call.
+class LeadPerson extends Equatable {
+  const LeadPerson({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.stance,
+    required this.phone,
+    required this.email,
+    required this.notes,
+  });
+
+  factory LeadPerson.fromJson(Map<String, dynamic> json) => LeadPerson(
+        id: asString(json['id']),
+        name: asString(json['name']),
+        role: asString(json['role']),
+        stance: asString(json['stance']),
+        phone: asString(json['phone']),
+        email: asString(json['email']),
+        notes: asString(json['notes']),
+      );
+
+  final String id;
+  final String name;
+  final String role;
+  final String stance;
+  final String phone;
+  final String email;
+  final String notes;
+
+  bool get isChampion => stance.toLowerCase() == 'champion';
+  bool get isBlocker => stance.toLowerCase() == 'blocker';
+
+  /// "Spouse · champion", or whichever half is on file.
+  String get subtitle => <String>[role, stance]
+      .where((String s) => s.isNotEmpty)
+      .join(' · ');
+
+  @override
+  List<Object?> get props => <Object?>[id, name, role, stance, phone, email];
+}
+
 /// A lead on the pipeline board.
 class Lead extends Equatable {
   const Lead({
@@ -157,6 +247,17 @@ class Lead extends Equatable {
     required this.followUpDue,
     this.notes = '',
     this.activities = const <LeadActivity>[],
+    this.bhk = '',
+    this.propertyType = '',
+    this.possession = '',
+    this.dealStatus = '',
+    this.signal = '',
+    this.openingLine = '',
+    this.aiSummary = '',
+    this.tags = const <String>[],
+    this.fieldGroups = const <LeadFieldGroup>[],
+    this.people = const <LeadPerson>[],
+    this.createdAt,
   });
 
   factory Lead.fromJson(Map<String, dynamic> json) => Lead(
@@ -184,6 +285,18 @@ class Lead extends Equatable {
         followUpDue: json['follow_up_due'] == true,
         notes: asString(json['notes']),
         activities: asMaps(json['activities']).map(LeadActivity.fromJson).toList(),
+        bhk: asString(json['bhk']),
+        propertyType: asString(json['property_type']),
+        possession: asString(json['possession']),
+        dealStatus: asString(json['deal_status']),
+        signal: asString(json['signal']),
+        openingLine: asString(json['opening_line']),
+        aiSummary: asString(json['ai_summary']),
+        tags: asStrings(json['tags']),
+        fieldGroups:
+            asMaps(json['field_groups']).map(LeadFieldGroup.fromJson).toList(),
+        people: asMaps(json['people']).map(LeadPerson.fromJson).toList(),
+        createdAt: DateTime.tryParse(asString(json['created_at'])),
       );
 
   final String id;
@@ -210,6 +323,34 @@ class Lead extends Equatable {
   final bool followUpDue;
   final String notes;
   final List<LeadActivity> activities;
+
+  /// The requirement, as structured columns rather than prose in `notes`.
+  final String bhk;
+  final String propertyType;
+  final String possession;
+
+  /// Open · won · lost, independent of the pipeline stage.
+  final String dealStatus;
+
+  /// Private to the owning rep, and redacted by the server for everyone else —
+  /// [notesArePrivate] is true when that has happened.
+  final String signal;
+  final String openingLine;
+
+  /// The CRM's own summary of this lead, where one has been generated.
+  final String aiSummary;
+  final List<String> tags;
+
+  /// Every recorded field, grouped and labelled by the server. Empty on a
+  /// board summary — the board sends the small projection — so a page that
+  /// renders these must have a fallback for the fields it already knows.
+  final List<LeadFieldGroup> fieldGroups;
+
+  /// The other people around this deal, with their stance.
+  final List<LeadPerson> people;
+
+  final DateTime? createdAt;
+
 
   /// What to put on the card. A lead may be a person, a company, or both.
   String get title => name.isNotEmpty ? name : company;

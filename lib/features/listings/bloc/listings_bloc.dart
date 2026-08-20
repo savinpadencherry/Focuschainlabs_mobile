@@ -6,6 +6,7 @@ import '../../../core/models/listing.dart';
 import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/secona_api.dart';
 import '../../../core/services/firebase/analytics_service.dart';
+import '../../../core/utils/inr.dart';
 
 part 'listings_event.dart';
 part 'listings_state.dart';

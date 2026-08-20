@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/get.dart';
 import '../../../../core/models/pipeline.dart';
 import '../../../../core/repository/crm_repository.dart';
+import '../../../../core/services/api/identity_cache.dart';
 import '../../../../core/services/api/secona_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -15,6 +16,11 @@ import '../../bloc/pipeline_bloc.dart';
 /// phone. `owner` and the tenant are deliberately absent — those are not edits,
 /// they are reassignments, and the server refuses them from a request body for
 /// the same reason.
+///
+/// The form is filtered against the server's own allowlist, which `/api/me`
+/// publishes. A field this server will not take is not shown at all, rather
+/// than offered and then rejected with "Fields not editable here" after the
+/// user has typed into it.
 ///
 /// Saves through the audited write gateway, so the change is on the web app
 /// immediately and in the audit log with the editor's name against it.
@@ -55,6 +61,10 @@ class _LeadEditSheetState extends State<LeadEditSheet> {
     'budget': TextEditingController(text: widget.lead.budget),
     'locality': TextEditingController(text: widget.lead.locality),
     'requirement': TextEditingController(text: widget.lead.requirement),
+    'bhk': TextEditingController(text: widget.lead.bhk),
+    'property_type': TextEditingController(text: widget.lead.propertyType),
+    'possession': TextEditingController(text: widget.lead.possession),
+    'source': TextEditingController(text: widget.lead.source),
     'next_follow_up': TextEditingController(text: widget.lead.nextFollowUp),
     'notes': TextEditingController(
       text: widget.lead.notesArePrivate ? '' : widget.lead.notes,
@@ -69,9 +79,20 @@ class _LeadEditSheetState extends State<LeadEditSheet> {
     'budget': 'Budget',
     'locality': 'Locality',
     'requirement': 'Looking for',
+    'bhk': 'Configuration',
+    'property_type': 'Property type',
+    'possession': 'Possession',
+    'source': 'Source',
     'next_follow_up': 'Next follow-up',
     'notes': 'Notes',
   };
+
+  /// The fields to show: the intersection of this form and the server's own
+  /// allowlist. `/api/me` publishes that list, so a column added to it reaches
+  /// installed phones without a release — and one removed from it stops being
+  /// offered rather than being rejected after the fact.
+  Iterable<String> get _offered =>
+      _fields.keys.where(IdentityCache.access.canEditLeadField);
 
   bool _saving = false;
   String _error = '';
@@ -92,6 +113,10 @@ class _LeadEditSheetState extends State<LeadEditSheet> {
         'budget' => widget.lead.budget,
         'locality' => widget.lead.locality,
         'requirement' => widget.lead.requirement,
+        'bhk' => widget.lead.bhk,
+        'property_type' => widget.lead.propertyType,
+        'possession' => widget.lead.possession,
+        'source' => widget.lead.source,
         'next_follow_up' => widget.lead.nextFollowUp,
         'notes' => widget.lead.notesArePrivate ? '' : widget.lead.notes,
         _ => '',
@@ -99,13 +124,14 @@ class _LeadEditSheetState extends State<LeadEditSheet> {
 
   Future<void> _save() async {
     final Map<String, dynamic> changes = <String, dynamic>{};
-    _fields.forEach((String key, TextEditingController c) {
+    for (final String key in _offered) {
+      final TextEditingController c = _fields[key]!;
       final String now = c.text.trim();
       // Only what actually changed. Sending the whole form would put every
       // field in the audit log on every save, which makes the log useless for
       // answering "what did they change?".
       if (now != _original(key)) changes[key] = now;
-    });
+    }
 
     if (changes.isEmpty) {
       Navigator.pop(context);
@@ -174,7 +200,7 @@ class _LeadEditSheetState extends State<LeadEditSheet> {
               ),
             ],
             AppSpacing.vGapLg,
-            for (final String key in _fields.keys) ...<Widget>[
+            for (final String key in _offered) ...<Widget>[
               _Field(
                 label: _labels[key] ?? key,
                 controller: _fields[key]!,

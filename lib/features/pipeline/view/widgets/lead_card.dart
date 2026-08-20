@@ -18,6 +18,25 @@ class LeadCard extends StatelessWidget {
   final Lead lead;
   final VoidCallback onTap;
 
+  /// What this lead is after, in the order a rep scans for it.
+  ///
+  /// The configuration is on the board because "3 BHK" is the fact that
+  /// decides whether a property is worth sending — it was on the record and
+  /// on the web app's card, and reachable on the phone only by opening the
+  /// lead and reading the requirement sentence.
+  List<(IconData, String, Color)> get _wants => <(IconData, String, Color)>[
+        if (lead.bhk.isNotEmpty)
+          (Icons.king_bed_outlined, lead.bhk, AppColors.green),
+        if (lead.propertyType.isNotEmpty)
+          (Icons.apartment_rounded, lead.propertyType, AppColors.inkSoft),
+        if (lead.locality.isNotEmpty)
+          (Icons.place_outlined, lead.locality, AppColors.iris),
+        // Only when nothing structured says the same thing — the requirement
+        // sentence usually repeats the configuration and the area back.
+        if (lead.requirement.isNotEmpty && lead.bhk.isEmpty)
+          (Icons.home_work_outlined, lead.requirement, AppColors.inkSoft),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
@@ -85,21 +104,9 @@ class LeadCard extends StatelessWidget {
                         if (lead.needsAttention) RiskChip(lead),
                       ],
                     ),
-                    if (lead.locality.isNotEmpty ||
-                        lead.requirement.isNotEmpty) ...<Widget>[
+                    if (_wants.isNotEmpty) ...<Widget>[
                       const SizedBox(height: 8),
-                      LeadFactPills(
-                        facts: <(IconData, String, Color)>[
-                          if (lead.locality.isNotEmpty)
-                            (Icons.place_outlined, lead.locality, AppColors.iris),
-                          if (lead.requirement.isNotEmpty)
-                            (
-                              Icons.home_work_outlined,
-                              lead.requirement,
-                              AppColors.inkSoft
-                            ),
-                        ],
-                      ),
+                      LeadFactPills(facts: _wants),
                     ],
                     const SizedBox(height: 9),
                     Row(

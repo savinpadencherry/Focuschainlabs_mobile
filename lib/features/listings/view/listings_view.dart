@@ -17,6 +17,7 @@ import '../../../shared/widgets/surface_header.dart';
 import '../bloc/listings_bloc.dart';
 import 'widgets/listing_card.dart';
 import 'widgets/listing_deck.dart';
+import 'widgets/listing_filter_sheet.dart';
 import 'widgets/listing_sheet.dart';
 import 'widgets/share_sheet.dart';
 
@@ -215,15 +216,25 @@ class _ControlsState extends State<_Controls> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            RoundedSearchField(
-              controller: _controller,
-              hint: AppStrings.listingsSearchHint,
-              onSubmitted: (String q) {
-                final ListingsBloc bloc = context.read<ListingsBloc>();
-                bloc.add(
-                  ListingsFiltered(bloc.state.filters.copyWith(query: q.trim())),
-                );
-              },
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: RoundedSearchField(
+                    controller: _controller,
+                    hint: AppStrings.listingsSearchHint,
+                    onSubmitted: (String q) {
+                      final ListingsBloc bloc = context.read<ListingsBloc>();
+                      bloc.add(
+                        ListingsFiltered(
+                          bloc.state.filters.copyWith(query: q.trim()),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _FilterButton(state: state),
+              ],
             ),
             if (state.activeChips.isNotEmpty) ...<Widget>[
               AppSpacing.vGapSm,
@@ -243,6 +254,63 @@ class _ControlsState extends State<_Controls> {
               ).animate().fadeIn(duration: 220.ms).slideY(begin: -0.2),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens the filters, and says how many are on.
+///
+/// The constraints existed in the model, the bloc and the API from the start
+/// and there was no control that could set any of them: the surface offered a
+/// text field, and the chips that restate a search were built to be removed.
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({required this.state});
+
+  final ListingsState state;
+
+  /// The query is typed in the field beside this, so it is not one of "the
+  /// filters" as far as the badge is concerned.
+  int get _count =>
+      state.activeChips.where(((String, String) c) => c.$1 != 'query').length;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool on = _count > 0;
+    return Semantics(
+      button: true,
+      label: on ? '$_count filters on' : 'Filters',
+      child: GestureDetector(
+        onTap: () => ListingFilterSheet.open(context, state.filters),
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: on ? AppColors.iris : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+            border: Border.all(color: on ? AppColors.iris : AppColors.cardBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.tune_rounded,
+                size: 19,
+                color: on ? Colors.white : AppColors.inkSoft,
+              ),
+              if (on) ...<Widget>[
+                const SizedBox(width: 6),
+                Text(
+                  '$_count',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/crm_chips.dart';
 import '../../../pipeline/bloc/pipeline_bloc.dart';
 import '../../bloc/listings_bloc.dart';
+import 'listing_gallery.dart';
 import 'listing_qa.dart';
 import 'share_sheet.dart';
 
@@ -76,6 +77,14 @@ class ListingSheet extends StatelessWidget {
               controller: controller,
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
               children: <Widget>[
+                // The photos. This sheet is where a rep decides whether to
+                // send a property to a client, and it used to open on a
+                // title and a price — the pictures existed, on the card
+                // behind it, and stopped at the first one even there.
+                if (listing.hasPhotos) ...<Widget>[
+                  ListingGallery(listing: listing),
+                  AppSpacing.vGapMd,
+                ],
                 Text(
                   listing.title,
                   style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),

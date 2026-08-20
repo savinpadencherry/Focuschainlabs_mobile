@@ -1,25 +1,25 @@
 import 'package:equatable/equatable.dart';
 
-import 'enums.dart';
-
-/// An authenticated member of exactly one org, with a role (spec §3, F10).
+/// The Google account this device is signed in as.
+///
+/// Deliberately says nothing about the organisation or the role. It used to:
+/// it was built at sign-in with the org hard-coded to `org-fcl` and the role
+/// to admin, which is right for one tenant and one person and wrong for
+/// everyone else — and nothing on screen distinguished that guess from an
+/// answer. Firebase knows who signed in; only the CRM knows which workspace
+/// they belong to and what they may do there, and that lives on `Me`
+/// (`GET /api/me`), resolved through `IdentityCache`.
 class AppUser extends Equatable {
   const AppUser({
     required this.id,
     required this.name,
     required this.email,
-    required this.orgId,
-    required this.orgName,
-    required this.role,
     this.avatarInitials,
   });
 
   final String id;
   final String name;
   final String email;
-  final String orgId;
-  final String orgName;
-  final UserRole role;
   final String? avatarInitials;
 
   String get initials {
@@ -35,9 +35,6 @@ class AppUser extends Equatable {
         'id': id,
         'name': name,
         'email': email,
-        'orgId': orgId,
-        'orgName': orgName,
-        'role': role.name,
         'avatarInitials': avatarInitials,
       };
 
@@ -45,16 +42,9 @@ class AppUser extends Equatable {
         id: json['id'] as String,
         name: json['name'] as String,
         email: json['email'] as String,
-        orgId: json['orgId'] as String,
-        orgName: json['orgName'] as String,
-        role: UserRole.values.firstWhere(
-          (UserRole r) => r.name == json['role'],
-          orElse: () => UserRole.rep,
-        ),
         avatarInitials: json['avatarInitials'] as String?,
       );
 
   @override
-  List<Object?> get props =>
-      <Object?>[id, name, email, orgId, orgName, role, avatarInitials];
+  List<Object?> get props => <Object?>[id, name, email, avatarInitials];
 }

@@ -8,8 +8,11 @@ import '../../../core/services/auth/google_auth_service.dart';
 part 'auth_event.dart';
 part 'auth_state.dart';
 
-/// Drives sign-in, session restore and sign-out (spec F10). Holds the current
-/// [AppUser] so the rest of the app can render role/org-aware surfaces.
+/// Drives sign-in, session restore and sign-out (spec F10).
+///
+/// Holds the Google account only. Which workspace that account belongs to and
+/// what it may do there are the CRM's answers, resolved once through
+/// `IdentityCache` — see `lib/core/services/api/identity_cache.dart`.
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({required AuthRepository authRepository})
       : _authRepository = authRepository,

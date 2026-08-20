@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../../core/get.dart';
 import '../../core/models/listing.dart';
-import '../../core/repository/crm_repository.dart';
 import '../../core/services/api/identity_cache.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -95,18 +93,15 @@ class _ProfileAvatarButtonState extends State<ProfileAvatarButton> {
   @override
   void initState() {
     super.initState();
-    if (IdentityCache.current == null) _load();
+    _load();
   }
 
   Future<void> _load() async {
-    try {
-      final Me me = await app<CrmRepository>().me();
-      IdentityCache.current = me;
-      if (mounted) setState(() {});
-    } catch (_) {
-      // The header is not the place to report an access problem — Profile
-      // itself says so properly, and this is a 34px circle.
-    }
+    // Deduplicated in the cache: the shell asks for this in the same frame,
+    // and both asks share one request. A failure is not reported here — the
+    // header is a 38px circle, and Profile says so properly.
+    await IdentityCache.ensure();
+    if (mounted) setState(() {});
   }
 
   @override

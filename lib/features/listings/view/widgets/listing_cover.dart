@@ -22,11 +22,20 @@ class ListingCover extends StatefulWidget {
     required this.listing,
     this.height = 150,
     this.borderRadius,
+    this.index = 0,
+    this.fit = BoxFit.cover,
   });
 
   final Listing listing;
   final double height;
   final BorderRadius? borderRadius;
+
+  /// Which photo. 0 is the cover, and the API falls back to the first
+  /// reference that actually reads for that one — so a property whose first
+  /// upload was deleted still shows a picture rather than the placeholder.
+  final int index;
+
+  final BoxFit fit;
 
   @override
   State<ListingCover> createState() => _ListingCoverState();
@@ -42,10 +51,17 @@ class _ListingCoverState extends State<ListingCover> {
     _resolve();
   }
 
+  @override
+  void didUpdateWidget(ListingCover old) {
+    super.didUpdateWidget(old);
+    // A gallery page reuses this state object for a different photo.
+    if (old.listing.id != widget.listing.id) _resolve();
+  }
+
   Future<void> _resolve() async {
     // Only fetch for properties that claim to have a photo; the rest get the
     // placeholder without a round trip.
-    if (widget.listing.images.isEmpty) {
+    if (!widget.listing.hasPhotos) {
       setState(() => _tried = true);
       return;
     }
@@ -62,6 +78,14 @@ class _ListingCoverState extends State<ListingCover> {
     }
   }
 
+  /// The cover keeps the bare path. It is what every installed build asks
+  /// for, and an API that has not been redeployed yet still serves it — so a
+  /// new APK against an old server still shows covers, and only the extra
+  /// gallery pages wait for the deploy.
+  String get _path => widget.index <= 0
+      ? '/api/listings/${widget.listing.id}/photo'
+      : '/api/listings/${widget.listing.id}/photo/${widget.index}';
+
   @override
   Widget build(BuildContext context) {
     final BorderRadius radius = widget.borderRadius ??
@@ -75,10 +99,9 @@ class _ListingCoverState extends State<ListingCover> {
         child: _headers == null
             ? _Placeholder(listing: widget.listing, loading: !_tried)
             : Image.network(
-                app<SeconaApi>()
-                    .urlFor('/api/listings/${widget.listing.id}/photo'),
+                app<SeconaApi>().urlFor(_path),
                 headers: _headers,
-                fit: BoxFit.cover,
+                fit: widget.fit,
                 // A property whose photo has been removed 404s; the
                 // placeholder is the same one an unphotographed property
                 // gets, so the card never shows a broken-image glyph.

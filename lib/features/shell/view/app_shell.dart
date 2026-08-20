@@ -80,21 +80,15 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Future<void> _resolve() async {
-    if (IdentityCache.current != null) {
-      setState(() => _resolving = false);
-      return;
-    }
-    try {
-      final Me me = await app<CrmRepository>().me();
-      IdentityCache.current = me;
+    final Me? me = await IdentityCache.ensure();
+    if (me != null) {
       // Org and role, never the person — usage can then be read per workspace
       // and per kind of user without identifying anyone.
       await app<AnalyticsService>()
           .setWorkspace(orgId: me.organizationId, role: me.role);
-    } catch (_) {
-      // Unreachable or not a member. The surfaces report it properly; the
-      // greeting and the avatar just fall back to neutral text.
     }
+    // A null answer means unreachable or not a member. The surfaces report it
+    // properly; the greeting and the avatar fall back to neutral text.
     if (mounted) setState(() => _resolving = false);
   }
 

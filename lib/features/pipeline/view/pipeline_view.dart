@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/models/pipeline.dart';
+import '../../../core/services/api/identity_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
@@ -318,6 +319,20 @@ class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool filtered = state.search.isNotEmpty || state.stage != null;
+
+    // A manager reads the org's totals and opens no individual lead — the
+    // server scopes them to aggregates, so this board is empty on purpose.
+    // Without saying so, it is indistinguishable from a failed load, and the
+    // counters above it showing a live pipeline value made it look worse.
+    if (!filtered && IdentityCache.access.seesAggregatesOnly) {
+      return const EmptyState(
+        icon: Icons.insights_rounded,
+        title: 'Totals only',
+        message: 'Your account sees the pipeline in aggregate — the counters '
+            'above are live. Individual leads stay with the reps who own them.',
+      );
+    }
+
     return EmptyState(
       icon: filtered ? Icons.filter_alt_off_rounded : Icons.view_kanban_outlined,
       title: state.search.isNotEmpty

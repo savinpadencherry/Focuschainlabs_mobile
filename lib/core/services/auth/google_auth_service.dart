@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../models/enums.dart';
 import '../../models/user.dart';
 
 /// Google Sign-In + Firebase Authentication. Login requests only the basic
@@ -81,14 +80,16 @@ class GoogleAuthService {
     return account.authHeaders;
   }
 
+  /// Who Google says signed in — and nothing else.
+  ///
+  /// The organisation and the role used to be filled in here with constants
+  /// (`org-fcl`, admin). They are the CRM's answer, not Google's: `/api/me`
+  /// resolves them per user from the invite list, and `IdentityCache` holds
+  /// that answer for the app.
   AppUser _toAppUser(User user) => AppUser(
         id: user.uid,
         name: user.displayName ?? user.email?.split('@').first ?? 'Sales rep',
         email: user.email ?? '',
-        // TODO: resolve from OrganizationMembership (Data Connect) once deployed.
-        orgId: 'org-fcl',
-        orgName: 'FocusChain Labs',
-        role: UserRole.admin,
       );
 }
 

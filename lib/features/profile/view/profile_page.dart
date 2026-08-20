@@ -3,11 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/get.dart';
 import '../../../core/models/listing.dart';
-import '../../../core/repository/crm_repository.dart';
 import '../../../core/services/api/identity_cache.dart';
-import '../../../core/services/api/secona_api.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/responsive.dart';
@@ -44,15 +41,16 @@ class _ProfilePageState extends State<ProfilePage> {
       _loading = true;
       _error = '';
     });
-    try {
-      final Me me = await app<CrmRepository>().me();
-      IdentityCache.current = me;
-      if (mounted) setState(() => _me = me);
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    // Pull-to-refresh here means "ask the server again", which is the only
+    // way a role change reaches a running app — so this refreshes rather than
+    // reading whatever was resolved at launch.
+    final Me? me = await IdentityCache.refresh();
+    if (!mounted) return;
+    setState(() {
+      _me = me;
+      _error = me == null ? IdentityCache.lastError : '';
+      _loading = false;
+    });
   }
 
   @override
@@ -82,6 +80,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (_me != null) ...<Widget>[
                   AppSpacing.vGapLg,
                   _OrgCard(me: _me!),
+                  AppSpacing.vGapLg,
+                  _AccessCard(me: _me!),
                 ],
                 AppSpacing.vGapLg,
                 const _ConnectionCard(),
@@ -233,6 +233,16 @@ class _OrgCard extends StatelessWidget {
 
   final Me me;
 
+  /// The workspace's own settings, as the server reports them. The timezone
+  /// is here because "due today" means today where the office is, not where
+  /// the phone happens to be roaming.
+  List<String> get _facts => <String>[
+        me.organizationId,
+        if (me.vertical.isNotEmpty) me.vertical.replaceAll('_', ' '),
+        if (me.timezone.isNotEmpty) me.timezone,
+        if (me.dialCode.isNotEmpty) '+${me.dialCode}',
+      ];
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -260,9 +270,104 @@ class _OrgCard extends StatelessWidget {
                   'Everything you do here is scoped to this organisation.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (_facts.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      for (final String f in _facts)
+                        TagChip(f, color: AppColors.inkSoft),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What this account may do, as the server decides it.
+///
+/// Worth its own card because the answer is not guessable from the app: a
+/// manager's pipeline is empty on purpose, and without this they are looking
+/// at a blank board with no way to tell that apart from a failure.
+class _AccessCard extends StatelessWidget {
+  const _AccessCard({required this.me});
+
+  final Me me;
+
+  @override
+  Widget build(BuildContext context) {
+    final Access access = me.access;
+    final List<(bool, String)> permissions = <(bool, String)>[
+      (access.canEditLeads, 'Edit leads'),
+      (access.canEditListings, 'Edit properties'),
+      (access.canDistributeListings, 'Assign properties to reps'),
+      (access.canManageMembers, 'Invite people and set roles'),
+      (access.canViewPrivateNotes, 'Read other reps’ private notes'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Icon(Icons.verified_user_outlined, color: AppColors.iris),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'What you can see',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      access.scopeLabel,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          for (final (bool allowed, String label) in permissions)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    allowed
+                        ? Icons.check_circle_rounded
+                        : Icons.remove_circle_outline_rounded,
+                    size: 16,
+                    color: allowed ? AppColors.green : AppColors.inkMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: allowed ? AppColors.ink : AppColors.inkMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

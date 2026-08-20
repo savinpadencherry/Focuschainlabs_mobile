@@ -40,6 +40,7 @@ class Listing extends Equatable {
     required this.listingAgent,
     required this.assignedTo,
     required this.shareCount,
+    required this.photoCount,
   });
 
   factory Listing.fromJson(Map<String, dynamic> json) => Listing(
@@ -74,6 +75,12 @@ class Listing extends Equatable {
         listingAgent: asString(json['listing_agent']),
         assignedTo: asStrings(json['assigned_to']),
         shareCount: asInt(json['share_count']),
+        // An older API sends no count. Falling back to the reference list is
+        // right there and wrong nowhere: a dead reference costs one blank
+        // gallery page, and refusing to show any gallery costs all of them.
+        photoCount: json.containsKey('photo_count')
+            ? asInt(json['photo_count'])
+            : asStrings(json['images']).length,
       );
 
   final String id;
@@ -111,6 +118,11 @@ class Listing extends Equatable {
   final String listingAgent;
   final List<String> assignedTo;
   final int shareCount;
+
+  /// How many photos `/api/listings/{id}/photo/{n}` will serve.
+  final int photoCount;
+
+  bool get hasPhotos => photoCount > 0;
 
   String get where => <String>[locality, city]
       .where((String s) => s.isNotEmpty)
@@ -226,8 +238,11 @@ class ListingFilters extends Equatable {
         'property_type': propertyType,
         'bhk': bhk,
         'status': status,
-        'min_price': minPrice,
-        'max_price': maxPrice,
+        // Whole rupees. A double stringifies as "40000000.0", and the API
+        // client drops a filter whose value is exactly '0' — "0.0" is not, so
+        // an unset budget was being sent as a filter.
+        'min_price': minPrice.round(),
+        'max_price': maxPrice.round(),
       };
 
   @override
@@ -256,6 +271,85 @@ class ListingQuestion extends Equatable {
   List<Object?> get props => <Object?>[id, label];
 }
 
+/// What the signed-in user may do, decided by the server and never guessed.
+///
+/// The app used to build a user at sign-in with the organisation hard-coded to
+/// `org-fcl` and the role to admin — right for one tenant and one person,
+/// wrong for everyone else. Every affordance now reads from here, and the API
+/// enforces the same rules independently, so a stale copy on a phone cannot
+/// become access it does not have.
+class Access extends Equatable {
+  const Access({
+    this.scope = 'own',
+    this.canEditLeads = true,
+    this.canEditListings = true,
+    this.canDistributeListings = false,
+    this.canManageMembers = false,
+    this.canViewPrivateNotes = false,
+    this.editableLeadFields = const <String>[],
+    this.editableListingFields = const <String>[],
+  });
+
+  factory Access.fromJson(Map<String, dynamic> json) => Access(
+        scope: asString(json['scope']).isEmpty ? 'own' : asString(json['scope']),
+        canEditLeads: json['can_edit_leads'] != false,
+        canEditListings: json['can_edit_listings'] != false,
+        canDistributeListings: json['can_distribute_listings'] == true,
+        canManageMembers: json['can_manage_members'] == true,
+        canViewPrivateNotes: json['can_view_private_notes'] == true,
+        editableLeadFields: asStrings(json['editable_lead_fields']),
+        editableListingFields: asStrings(json['editable_listing_fields']),
+      );
+
+  /// Before `/api/me` has answered, and for a server too old to send this.
+  /// Deliberately the app's previous behaviour: the server is the gate, so
+  /// guessing generously here costs a rejected write, and guessing meanly
+  /// costs a rep a button they are entitled to.
+  static const Access unknown = Access();
+
+  /// `all` · `own` · `aggregate` — which leads this user may see.
+  final String scope;
+  final bool canEditLeads;
+  final bool canEditListings;
+  final bool canDistributeListings;
+  final bool canManageMembers;
+  final bool canViewPrivateNotes;
+
+  /// The API's own edit allowlists. A form built from these cannot offer a
+  /// field the server will reject; empty means the server did not say, and the
+  /// caller should fall back to its built-in list.
+  final List<String> editableLeadFields;
+  final List<String> editableListingFields;
+
+  /// A manager reads counts and totals and opens no individual lead. Their
+  /// board is empty *by design*, which is a different screen from "we could
+  /// not load your leads".
+  bool get seesAggregatesOnly => scope == 'aggregate';
+
+  bool get seesEveryLead => scope == 'all';
+
+  String get scopeLabel => switch (scope) {
+        'all' => 'Every lead in the workspace',
+        'aggregate' => 'Totals only — no individual leads',
+        _ => 'The leads you own',
+      };
+
+  bool canEditLeadField(String field) =>
+      editableLeadFields.isEmpty || editableLeadFields.contains(field);
+
+  @override
+  List<Object?> get props => <Object?>[
+        scope,
+        canEditLeads,
+        canEditListings,
+        canDistributeListings,
+        canManageMembers,
+        canViewPrivateNotes,
+        editableLeadFields,
+        editableListingFields,
+      ];
+}
+
 /// The signed-in user as the CRM sees them.
 class Me extends Equatable {
   const Me({
@@ -269,6 +363,8 @@ class Me extends Equatable {
     required this.role,
     required this.isAdmin,
     required this.canDistributeListings,
+    required this.timezone,
+    required this.access,
   });
 
   factory Me.fromJson(Map<String, dynamic> json) {
@@ -286,6 +382,10 @@ class Me extends Equatable {
       role: asString(json['role']),
       isAdmin: json['is_admin'] == true,
       canDistributeListings: json['can_distribute_listings'] == true,
+      timezone: asString(org['timezone']),
+      access: json.containsKey('access')
+          ? Access.fromJson(asMap(json['access']))
+          : Access.unknown,
     );
   }
 
@@ -307,6 +407,13 @@ class Me extends Equatable {
   final bool isAdmin;
   final bool canDistributeListings;
 
+  /// The workspace's own timezone. A follow-up "due today" is due today
+  /// where the office is, not where the phone happens to be roaming.
+  final String timezone;
+
+  /// Everything this user may do, as the server decides it.
+  final Access access;
+
   /// Whether this tenant deals in property.
   ///
   /// A B2B SaaS tenant has no inventory, so the Listings surface is not a
@@ -323,5 +430,5 @@ class Me extends Equatable {
   }
 
   @override
-  List<Object?> get props => <Object?>[email, organizationId, role];
+  List<Object?> get props => <Object?>[email, organizationId, role, access];
 }
