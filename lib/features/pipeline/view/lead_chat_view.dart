@@ -133,12 +133,30 @@ class _LeadChatViewState extends State<LeadChatView> {
           await app<CrmRepository>().askAboutLead(widget.leadId, question);
       if (!mounted) return;
       setState(() {
-        _messages = <LeadChatMessage>[
-          ..._messages.where(
-            (LeadChatMessage m) => m.id != '_local' && !m.pending,
-          ),
-          ...stored,
-        ];
+        // The local pair is dropped in favour of the stored one — same two
+        // turns, but with the ids the server gave them.
+        //
+        // Unless the server sent nothing back. Then swapping would delete the
+        // question the user just typed and leave the thread exactly as it was
+        // before they pressed send, which reads as the app ignoring them. The
+        // typed question stays, with a line saying the answer did not arrive.
+        final List<LeadChatMessage> kept = _messages
+            .where((LeadChatMessage m) => m.id != '_local' && !m.pending)
+            .toList();
+        _messages = stored.isEmpty
+            ? <LeadChatMessage>[
+                ..._messages.where((LeadChatMessage m) => !m.pending),
+                LeadChatMessage(
+                  id: '_empty_${DateTime.now().microsecondsSinceEpoch}',
+                  role: 'assistant',
+                  body: 'The CRM took your question but sent nothing back. '
+                      'Ask again, or open the lead to read the record.',
+                  source: 'mobile',
+                  createdAt: DateTime.now(),
+                  failed: true,
+                ),
+              ]
+            : <LeadChatMessage>[...kept, ...stored];
       });
     } on ApiException catch (e) {
       if (!mounted) return;

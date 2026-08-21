@@ -46,6 +46,12 @@ class _AppCardState extends State<AppCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: widget.padding,
+          // Clip children to the same rounded rectangle the border is drawn
+          // on. Without this a card whose child reaches the edge — a listing's
+          // cover photo — painted its own square corners just inside the
+          // rounded border, so every property card showed four small wedges of
+          // photograph outside the curve.
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: widget.color,
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),

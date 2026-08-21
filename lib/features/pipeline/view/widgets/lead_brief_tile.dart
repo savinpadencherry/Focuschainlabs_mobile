@@ -27,31 +27,41 @@ class LeadBriefTile extends StatelessWidget {
         border: Border.all(color: AppColors.cardBorder),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Container(width: 3, color: AppColors.green),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if (brief.stage.isNotEmpty)
-                    _Row(
-                      label: 'STAGE',
-                      value: brief.stage,
-                      emphasis: true,
-                    ),
-                  for (final BriefRow r in brief.rows) ...<Widget>[
-                    const SizedBox(height: 9),
-                    _Row(label: r.label, value: r.value, gap: r.isGap),
+      // The stage rail is a stretched child, so the Row needs a height to
+      // stretch it to. Inside a ListView there is none — the cross axis is
+      // unbounded — and `CrossAxisAlignment.stretch` then hands the rail an
+      // infinite height, which is a layout assertion, not a rendering glitch.
+      // The whole viewport fails to lay out, so the screen goes blank from the
+      // header down: no brief, no messages, and a composer whose sends land in
+      // a list that cannot draw them. `LeadCard` builds the identical rail and
+      // wraps it the same way.
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Container(width: 3, color: AppColors.green),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (brief.stage.isNotEmpty)
+                      _Row(
+                        label: 'STAGE',
+                        value: brief.stage,
+                        emphasis: true,
+                      ),
+                    for (final BriefRow r in brief.rows) ...<Widget>[
+                      const SizedBox(height: 9),
+                      _Row(label: r.label, value: r.value, gap: r.isGap),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

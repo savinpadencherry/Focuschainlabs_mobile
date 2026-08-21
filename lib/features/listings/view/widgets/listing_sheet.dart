@@ -82,7 +82,18 @@ class ListingSheet extends StatelessWidget {
                 // screen allows, and once they are reading the specs the
                 // pictures should get out of the way without being gone — the
                 // title stays pinned so they always know which flat this is.
-                if (listing.hasPhotos) _PhotoHeader(listing: listing),
+                if (listing.hasPhotos)
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _PhotoHeaderDelegate(
+                      listing: listing,
+                      // A third of the screen, within bounds. Fixed at 300 it
+                      // ate a small phone's whole viewport and left no
+                      // specifications visible under it.
+                      maxExtent: (MediaQuery.sizeOf(context).height * 0.34)
+                          .clamp(200.0, 320.0),
+                    ),
+                  ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
                   sliver: SliverList(
@@ -296,74 +307,108 @@ class _Specs extends StatelessWidget {
 
 /// The photos as a collapsing header.
 ///
-/// Expanded, the gallery is nearly a third of the screen — a property is sold
+/// Expanded, the gallery is about a third of the screen — a property is sold
 /// on its pictures and this sheet is where a rep decides whether to send it to
 /// a client. Scrolling into the specifications shrinks it to a bar rather than
-/// scrolling it away entirely: the title stays pinned, so nobody reads a
-/// carpet area halfway down and has to scroll back up to check which flat it
-/// belongs to.
-class _PhotoHeader extends StatelessWidget {
-  const _PhotoHeader({required this.listing});
+/// scrolling it away: the title stays pinned, so nobody reads a carpet area
+/// halfway down and has to scroll back up to check which flat it belongs to.
+///
+/// A hand-built persistent header rather than `SliverAppBar` +
+/// `FlexibleSpaceBar`. The gallery is interactive — you swipe it sideways —
+/// and inside a flexible space it would not take the drag: the flexible space
+/// lays its background out at full height and offsets it as the bar collapses,
+/// and the gesture arena for that subtree is not the simple thing a `PageView`
+/// needs. Here the gallery is an ordinary child of an ordinary `Stack` and
+/// horizontal drags reach it, which is the whole point of having more than one
+/// photograph.
+class _PhotoHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _PhotoHeaderDelegate({required this.listing, required this.maxExtent});
 
   final Listing listing;
 
   @override
-  Widget build(BuildContext context) {
-    // A third of the screen, within bounds. Fixed at 300 it ate a small
-    // phone's whole viewport and left no specs visible under it.
-    final double expanded =
-        (MediaQuery.sizeOf(context).height * 0.34).clamp(200.0, 320.0);
+  final double maxExtent;
 
-    return SliverAppBar(
-      pinned: true,
-      expandedHeight: expanded,
-      // The sheet has its own drag handle directly above this; a back arrow
-      // here would be a second, differently-behaved way out.
-      automaticallyImplyLeading: false,
-      backgroundColor: AppColors.paper,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.parallax,
-        titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-        title: Text(
-          listing.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            // The collapsed bar is paper, not photograph, so the white title
-            // needs something behind it there too.
-            shadows: <Shadow>[
-              Shadow(color: Color(0xCC161026), blurRadius: 10),
-              Shadow(color: Color(0x99161026), blurRadius: 24),
-            ],
+  /// The collapsed bar: tall enough for the title and nothing more.
+  @override
+  double get minExtent => kToolbarHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final double range = (maxExtent - minExtent).clamp(1.0, double.infinity);
+    // 0 fully open, 1 fully collapsed.
+    final double t = (shrinkOffset / range).clamp(0.0, 1.0);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        // Held at full height and anchored to the top, so collapsing crops the
+        // picture from the bottom instead of squashing it.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: maxExtent,
+          child: ListingGallery(
+            listing: listing,
+            height: maxExtent,
+            borderRadius: BorderRadius.zero,
+            // The title sits on the bottom edge; dots underneath it would be
+            // two things competing for the same strip. The counter still says
+            // how many photos there are.
+            showDots: false,
           ),
         ),
-        background: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            ListingGallery(
-              listing: listing,
-              height: expanded,
-              borderRadius: BorderRadius.zero,
-              showDots: false,
-            ),
-            // Keeps the title legible over a bright photograph without
-            // dimming the picture where it matters.
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.center,
-                  colors: <Color>[Color(0x99000000), Color(0x00000000)],
-                ),
+        // Two scrims doing different jobs: the gradient keeps the title legible
+        // over a bright photograph, and the flat one fades the picture out as
+        // the bar closes so the pinned title never sits on a busy crop.
+        // Both ignore pointers — a scrim that swallowed the swipe would undo
+        // the reason this is not a FlexibleSpaceBar.
+        const IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.center,
+                colors: <Color>[Color(0x99000000), Color(0x00000000)],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.ink.withValues(alpha: 0.55 * t),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 14,
+          child: IgnorePointer(
+            child: Text(
+              listing.title,
+              maxLines: t > 0.5 ? 1 : 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                // Shrinks as it docks, the way a large title settles into a bar.
+                fontSize: 22 - (5 * t),
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+                color: Colors.white,
+                shadows: const <Shadow>[
+                  Shadow(color: Color(0xCC161026), blurRadius: 10),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
+
+  @override
+  bool shouldRebuild(_PhotoHeaderDelegate old) =>
+      old.listing.id != listing.id || old.maxExtent != maxExtent;
 }
