@@ -140,9 +140,17 @@ class SeconaApi {
     try {
       response = await request().timeout(_timeout);
     } on TimeoutException {
-      throw const ApiException(408, 'That took too long. Check your signal and try again.');
+      throw const ApiException(
+        408,
+        'That took too long to answer. Try again — or open the lead and read '
+        'the record directly.',
+      );
     } catch (error) {
-      throw ApiException(0, 'Could not reach the CRM. $error');
+      // Not the raw exception. It reached the screen as "ClientException:
+      // Software caused connection abort, uri=https://mobile-api-1078…" — a
+      // sentence that tells a rep standing in a flat nothing they can act on,
+      // and puts an internal hostname in front of whoever is next to them.
+      throw ApiException(0, _unreachable(error));
     }
 
     final Map<String, dynamic> decoded = _decode(response);
@@ -153,6 +161,24 @@ class SeconaApi {
       response.statusCode,
       (decoded['detail'] ?? decoded['message'] ?? 'Request failed.').toString(),
     );
+  }
+
+  /// What a dropped request means, in words someone can act on.
+  static String _unreachable(Object error) {
+    final String raw = error.toString().toLowerCase();
+    if (raw.contains('abort') ||
+        raw.contains('reset') ||
+        raw.contains('closed')) {
+      return 'The connection dropped before the answer came back. '
+          'Try again in a moment.';
+    }
+    if (raw.contains('failed host lookup') ||
+        raw.contains('no address') ||
+        raw.contains('unreachable') ||
+        raw.contains('network is')) {
+      return 'No connection. Check your signal and try again.';
+    }
+    return 'Could not reach the CRM. Try again in a moment.';
   }
 
   Map<String, dynamic> _decode(http.Response response) {
